@@ -1,0 +1,50 @@
+[project]
+name = "sinpapel-drf"
+version = "0.1.0"
+description = "DRF HTTP layer for sinpapel — auto-routing, ViewSets, signature serializers (extraído desde creditos/E13)"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [
+    { name = "Julio Adrián", email = "jadrian.s@gmail.com" },
+]
+keywords = ["django", "drf", "rest-framework", "workflow", "sinpapel", "fiel", "tramites"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Django",
+    "Framework :: Django :: 5.0",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "sinpapel>=0.1.0,<0.2",
+    "djangorestframework>=3.14",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0",
+    "pytest-django>=4.12",
+]
+openapi = [
+    "drf-spectacular>=0.27",
+]
+
+[project.urls]
+Homepage = "https://github.com/jadrians/creditos"
+Issues = "https://github.com/jadrians/creditos/issues"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# Layout pyproject INSIDE-package (lección S12.8) — packages + package_dir explícitos
+[tool.setuptools]
+packages = ["sinpapel_drf"]
+
+[tool.setuptools.package-dir]
+sinpapel_drf = "."
