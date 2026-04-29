@@ -48,3 +48,8 @@ packages = ["sinpapel_drf"]
 
 [tool.setuptools.package-dir]
 sinpapel_drf = "."
+
+[tool.pytest.ini_options]
+markers = [
+    "install_smoke: integration smoke tests requiring uv venv + pip install (skip by default; manual run via -m install_smoke)",
+]
