@@ -1,29 +1,45 @@
-"""sinpapel-drf — WorkflowViewSet full implementation (S13.5).
+"""sinpapel-drf — WorkflowViewSet full implementation (S13.5 + S13.6).
 
 3 actions completas:
 - available_transitions (GET) → EstadoSerializer many=True (D5: lista plana)
-- transition (POST) → TransitionRequestSerializer input + TransitionResponseSerializer output
+- transition (POST) → TransitionRequestSerializer + signature dispatch (S13.6)
 - history (GET) → HistoryEntrySerializer + PageNumberPagination (D4)
 
-Error mapping (D3):
+S13.6 signature dispatch (D-discr + D-parser + D-engine-passthrough):
+- Modo A (fiel/client-side): JSON body → engine recibe firma_payload con verify-fields
+- Modo B (fiel/server-side): multipart → viewset invoca FielBackend.sign_server_side
+  → engine recibe firma_payload={"registro_firma_id": rf.id}
+- manual/fake: JSON body → viewset invoca el backend correspondiente → engine
+  recibe firma_payload={"registro_firma_id": rf.id}
+
+Error mapping (S13.5 D3 + S13.6 extension):
 - ValueError → DRF ValidationError (400)
 - PermissionError → DRF PermissionDenied (403)
+- SignatureValidationError → DRF ValidationError (400)
+- SignatureBackendNotConfiguredError → DRF ValidationError (400)
 
-build_viewset_for(config) genera subclase dinámica parametrizada por modelo,
-usado por SinpapelRouter para auto-routing desde WorkflowRegistry.
+S13.6 D-perm: NO custom GruposPermitidosPermission — engine puede_cambiar_estado
+enforces grupos_permitidos vía PermissionError → 403 (mapping reuse).
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import TYPE_CHECKING
 
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from sinpapel.signing.exceptions import (
+    SignatureBackendNotConfiguredError,
+    SignatureValidationError,
+)
 from sinpapel_drf.serializers import (
     EstadoSerializer,
     HistoryEntrySerializer,
@@ -43,11 +59,83 @@ class HistoryPagination(PageNumberPagination):
     max_page_size = 100
 
 
+def _canonicalize_for_signing(target_state: str, instance_id: int, user_id: int) -> bytes:
+    """Construye contenido canónico determinista para firma.
+
+    Algorithm: JSON sort_keys + separators sin whitespace + UTF-8 encoded.
+    Mismo approach que EphemeralFirmaService canónico (PAT-J-023).
+    """
+    return json.dumps(
+        {
+            "instance_id": instance_id,
+            "target_state": target_state,
+            "user_id": user_id,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def _build_firma_payload_for_engine(
+    sig_data: dict, target_state: str, instance, user
+) -> dict:
+    """Despacha al backend apropiado y retorna firma_payload para engine.
+
+    Modo A (fiel/client-side) → dict con verify-fields (engine verifica + persiste).
+    Modo B (fiel/server-side) → invoca FielBackend.sign_server_side, retorna
+                                {"registro_firma_id": rf.id}.
+    Manual/Fake → invoca backend, retorna {"registro_firma_id": rf.id}.
+    """
+    backend_name = sig_data["backend"]
+    mode = sig_data.get("mode", "client-side")
+
+    if backend_name == "fiel" and mode == "server-side":
+        from sinpapel.signing.backends.fiel import FielBackend
+        content = _canonicalize_for_signing(target_state, instance.pk, user.id)
+        # `sig_data` viene del serializer ya validado — files son UploadedFile
+        cer_bytes = sig_data["cer_file"].read()
+        key_bytes = sig_data["key_file"].read()
+        password = sig_data["password"].encode("utf-8")
+        rf = FielBackend().sign_server_side(
+            content=content, signer=user,
+            cer_bytes=cer_bytes, key_bytes=key_bytes, password=password,
+        )
+        return {"registro_firma_id": rf.id}
+
+    elif backend_name == "fiel":  # client-side
+        # Engine verifica via FielBackend.request_signature
+        # firma_b64 viene base64 del cliente; cer_b64 también.
+        return {
+            "contenido": _canonicalize_for_signing(
+                target_state, instance.pk, user.id
+            ),
+            "firma_b64": sig_data["firma_b64"],
+            "certificado_cer_b64": sig_data["certificado_cer_b64"],
+        }
+
+    elif backend_name == "manual":
+        from sinpapel.signing.backends.manual import ManualBackend
+        content = _canonicalize_for_signing(target_state, instance.pk, user.id)
+        rf = ManualBackend().request_signature(
+            content=content, signer=user,
+            scanned_image_path=sig_data["scanned_image_path"],
+            witness_name=sig_data["witness_name"],
+        )
+        return {"registro_firma_id": rf.id}
+
+    else:  # fake
+        from sinpapel.signing.backends.fake import FakeBackend
+        content = _canonicalize_for_signing(target_state, instance.pk, user.id)
+        rf = FakeBackend().request_signature(content=content, signer=user)
+        return {"registro_firma_id": rf.id}
+
+
 class WorkflowViewSet(GenericViewSet):
     """Auto-instantiated ViewSet via SinpapelRouter.
 
-    S13.5: full implementation. Permission stub IsAuthenticated;
-    GruposPermitidosPermission llega en S13.6.
+    S13.6: full implementation con signature dispatch polimórfico.
+    Permission stub IsAuthenticated; grupos_permitidos enforce vía engine
+    PermissionError → 403 (D-perm: skip custom DRF permission class).
     """
 
     permission_classes = [IsAuthenticated]
@@ -61,29 +149,52 @@ class WorkflowViewSet(GenericViewSet):
         serializer = EstadoSerializer(states, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"])
+    @action(
+        detail=True, methods=["post"],
+        parser_classes=[JSONParser, MultiPartParser, FormParser],
+    )
     def transition(self, request, pk=None):
-        """POST .../transition/ → ejecuta transición + retorna info en 201."""
+        """POST .../transition/ → ejecuta transición + retorna info en 201.
+
+        S13.6: parser_classes mixto soporta JSON (modo A/manual/fake) y
+        multipart (modo B server-side con cer/key files). Signature dispatch
+        polimórfico vía SignatureRequestSerializer + _build_firma_payload_for_engine.
+        """
         instance = self.get_object()
 
         req_serializer = TransitionRequestSerializer(data=request.data)
         req_serializer.is_valid(raise_exception=True)
+        validated = req_serializer.validated_data
+
+        # S13.6: dispatch signature al backend apropiado (si presente)
+        firma_payload = None
+        signature_data = validated.get("signature")
+        if signature_data:
+            try:
+                firma_payload = _build_firma_payload_for_engine(
+                    signature_data,
+                    target_state=validated["target_state"],
+                    instance=instance,
+                    user=request.user,
+                )
+            except (SignatureValidationError, SignatureBackendNotConfiguredError) as e:
+                raise ValidationError({"signature": [str(e)]})
 
         try:
             result_dict = instance.transition(
-                target_state_name=req_serializer.validated_data["target_state"],
+                target_state_name=validated["target_state"],
                 user=request.user,
-                comentarios=req_serializer.validated_data.get("comentarios", ""),
-                monto_aprobado=req_serializer.validated_data.get("monto_aprobado"),
-                condiciones=req_serializer.validated_data.get("condiciones"),
+                comentarios=validated.get("comentarios", ""),
+                monto_aprobado=validated.get("monto_aprobado"),
+                condiciones=validated.get("condiciones"),
+                firma_payload=firma_payload,
             )
         except PermissionError as e:
-            # D3: engine raises PermissionError para target inexistente,
-            # transición no válida, grupos no permitidos. Cubrimos con 403.
+            # D3/D-perm: engine raises PermissionError para target inexistente,
+            # transición no válida, grupos no permitidos → 403.
             raise PermissionDenied(detail=str(e))
-        except ValueError as e:
-            # Defensive: race condition entre puede_cambiar_estado y resolve.
-            raise ValidationError({"target_state": [str(e)]})
+        except (ValueError, SignatureValidationError) as e:
+            raise ValidationError({"detail": [str(e)]})
 
         resp_serializer = TransitionResponseSerializer(result_dict)
         return Response(resp_serializer.data, status=status.HTTP_201_CREATED)
@@ -125,3 +236,7 @@ def build_viewset_for(config: "WorkflowConfig") -> type[WorkflowViewSet]:
             "queryset": None,
         },
     )
+
+
+# Backward compat — hashlib mantenido para tests legacy que lo importen
+_ = hashlib  # noqa: B018 — preservado para imports externos potenciales

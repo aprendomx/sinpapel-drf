@@ -176,3 +176,136 @@ def test_history_entry_serializer_user_null_d9():
     data = HistoryEntrySerializer(entry).data
     assert data["history_id"] == 2
     assert data["history_user"] is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S13.6 T3 — SignatureRequestSerializer polimórfico
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_signature_fiel_client_side_valid_input():
+    """Modo A happy path: backend=fiel + mode=client-side + firma_b64 + cer_b64."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+
+    s = SignatureRequestSerializer(data={
+        "backend": "fiel",
+        "mode": "client-side",
+        "firma_b64": "ZmFrZQ==",
+        "certificado_cer_b64": "Y2VydA==",
+    })
+    assert s.is_valid(), s.errors
+    assert s.validated_data["firma_b64"] == "ZmFrZQ=="
+
+
+def test_signature_fiel_client_side_default_mode():
+    """Modo A default: si no se especifica mode, asume client-side."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+
+    s = SignatureRequestSerializer(data={
+        "backend": "fiel",
+        "firma_b64": "ZmFrZQ==",
+        "certificado_cer_b64": "Y2VydA==",
+    })
+    assert s.is_valid(), s.errors
+
+
+def test_signature_fiel_client_side_missing_firma_b64():
+    """Modo A: sin firma_b64 → 400 con error específico."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+
+    s = SignatureRequestSerializer(data={
+        "backend": "fiel",
+        "mode": "client-side",
+        "certificado_cer_b64": "Y2VydA==",
+    })
+    assert not s.is_valid()
+    assert "firma_b64" in str(s.errors)
+
+
+def test_signature_fiel_server_side_blocked_when_setting_false(settings):
+    """Modo B con setting=False → error en mode field."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+    settings.SINPAPEL_ALLOW_SERVER_SIGNING = False
+
+    s = SignatureRequestSerializer(data={
+        "backend": "fiel",
+        "mode": "server-side",
+        "cer_file": "fake_cer_data",
+        "key_file": "fake_key_data",
+        "password": "x",
+    })
+    assert not s.is_valid()
+    err_str = str(s.errors)
+    assert "Server-side signing is disabled" in err_str or "SINPAPEL_ALLOW_SERVER_SIGNING" in err_str
+
+
+def test_signature_fiel_server_side_valid_with_setting_true(settings):
+    """Modo B con setting=True acepta input (sin validar bytes)."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    settings.SINPAPEL_ALLOW_SERVER_SIGNING = True
+
+    s = SignatureRequestSerializer(data={
+        "backend": "fiel",
+        "mode": "server-side",
+        "cer_file": SimpleUploadedFile("c.cer", b"cert-bytes"),
+        "key_file": SimpleUploadedFile("c.key", b"key-bytes"),
+        "password": "test-pass",
+    })
+    assert s.is_valid(), s.errors
+
+
+def test_signature_manual_valid_input():
+    """Manual happy path: scanned_image_path + witness_name."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+
+    s = SignatureRequestSerializer(data={
+        "backend": "manual",
+        "scanned_image_path": "/uploads/firma.png",
+        "witness_name": "Lic. Pérez",
+    })
+    assert s.is_valid(), s.errors
+    assert s.validated_data["witness_name"] == "Lic. Pérez"
+
+
+def test_signature_fake_valid_no_kwargs():
+    """Fake happy path: no kwargs requeridos."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+
+    s = SignatureRequestSerializer(data={"backend": "fake"})
+    assert s.is_valid(), s.errors
+
+
+def test_signature_unknown_backend_returns_error():
+    """Backend desconocido → 400."""
+    from sinpapel_drf.serializers import SignatureRequestSerializer
+
+    s = SignatureRequestSerializer(data={"backend": "totally-fake-backend"})
+    assert not s.is_valid()
+    assert "backend" in s.errors
+
+
+def test_transition_request_with_nested_signature_fiel_client():
+    """TransitionRequestSerializer extendido acepta signature nested."""
+    from sinpapel_drf.serializers import TransitionRequestSerializer
+
+    s = TransitionRequestSerializer(data={
+        "target_state": "FIRMADO",
+        "comentarios": "approved",
+        "signature": {
+            "backend": "fiel",
+            "mode": "client-side",
+            "firma_b64": "ZmFrZQ==",
+            "certificado_cer_b64": "Y2VydA==",
+        },
+    })
+    assert s.is_valid(), s.errors
+    assert s.validated_data["signature"]["backend"] == "fiel"
+
+
+def test_transition_request_signature_optional():
+    """signature ausente sigue siendo válido (S13.5 backward compat)."""
+    from sinpapel_drf.serializers import TransitionRequestSerializer
+
+    s = TransitionRequestSerializer(data={"target_state": "EN_REVISION"})
+    assert s.is_valid(), s.errors

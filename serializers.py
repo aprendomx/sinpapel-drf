@@ -1,16 +1,23 @@
 """sinpapel-drf — Serializers para WorkflowViewSet endpoints.
 
-S13.5: serializers básicos. SignatureRequestSerializer polimórfico
-llega en S13.6 (FIEL dual mode).
+S13.5: serializers básicos.
+S13.6: SignatureRequestSerializer polimórfico (FIEL dual mode + manual + fake).
 
 D1: TransitionResponseSerializer mapea dict que retorna
 WorkflowEngine.cambiar_estado() (no es un Model).
-D2: TransitionRequestSerializer NO incluye signature field — S13.6 lo
-agregará polimórfico (Mode A client-side default + Mode B server-side opt-in).
+D2 (resuelto S13.6): TransitionRequestSerializer ahora incluye signature
+nested polimórfico opcional.
 D9: HistoryEntrySerializer.history_user nullable (mutaciones sin
 HistoryRequestMiddleware retornan None).
 D10: serializers.Serializer (no ModelSerializer) — inputs/outputs son
 shapes, no Models. HistoricalRecord es runtime-generated class.
+
+S13.6 D-discr: SignatureRequestSerializer dispatch via to_internal_value()
+por (backend, mode). Sub-serializers internos definen campos required
+por modo. Schema OpenAPI auto-generated puede no ser perfecto pero KISS.
+
+S13.6 D-perm: NO custom DRF permission class — engine puede_cambiar_estado
+enforces grupos_permitidos vía PermissionError → S13.5 D3 mapping → 403.
 """
 from __future__ import annotations
 
@@ -25,10 +32,95 @@ class EstadoSerializer(serializers.Serializer):
     color = serializers.CharField(default="", allow_blank=True, required=False)
 
 
+class FielClientSideSerializer(serializers.Serializer):
+    """Modo A — backend=fiel + mode=client-side. JSON body."""
+
+    backend = serializers.CharField(required=True)  # "fiel"
+    mode = serializers.CharField(required=False, default="client-side")
+    firma_b64 = serializers.CharField(required=True, allow_blank=False)
+    certificado_cer_b64 = serializers.CharField(required=True, allow_blank=False)
+
+
+class FielServerSideSerializer(serializers.Serializer):
+    """Modo B — backend=fiel + mode=server-side. multipart/form-data body.
+
+    Gated por SINPAPEL_ALLOW_SERVER_SIGNING=True (ADR-012). password y
+    key_file/cer_file marcados write_only=True (no leakean en response).
+    """
+
+    backend = serializers.CharField(required=True)
+    mode = serializers.CharField(required=True)  # "server-side"
+    cer_file = serializers.FileField(required=True, write_only=True)
+    key_file = serializers.FileField(required=True, write_only=True)
+    password = serializers.CharField(
+        required=True, write_only=True, allow_blank=False
+    )
+
+
+class ManualSignatureSerializer(serializers.Serializer):
+    """Manual — escaneo + testigo."""
+
+    backend = serializers.CharField(required=True)  # "manual"
+    scanned_image_path = serializers.CharField(required=True, allow_blank=False)
+    witness_name = serializers.CharField(required=True, allow_blank=False)
+
+
+class FakeSignatureSerializer(serializers.Serializer):
+    """Fake — tests only, no kwargs."""
+
+    backend = serializers.CharField(required=True)  # "fake"
+
+
+class SignatureRequestSerializer(serializers.Serializer):
+    """Polimórfico discriminated union por (backend, mode).
+
+    Dispatch en to_internal_value(): selecciona sub-serializer apropiado y
+    delega validation. Modo B (fiel + server-side) gated por
+    SINPAPEL_ALLOW_SERVER_SIGNING=True.
+    """
+
+    backend = serializers.ChoiceField(
+        choices=[("fiel", "fiel"), ("manual", "manual"), ("fake", "fake")],
+        required=True,
+    )
+
+    def to_internal_value(self, data):
+        # Dispatch sub-serializer por (backend, mode)
+        backend = data.get("backend")
+        mode = data.get("mode", "client-side")  # default modo A
+
+        if backend not in ("fiel", "manual", "fake"):
+            raise serializers.ValidationError({
+                "backend": [f"'{backend}' is not a valid choice."]
+            })
+
+        if backend == "fiel":
+            if mode == "server-side":
+                from django.conf import settings
+                if not getattr(settings, "SINPAPEL_ALLOW_SERVER_SIGNING", False):
+                    raise serializers.ValidationError({
+                        "mode": [
+                            "Server-side signing is disabled. Set "
+                            "SINPAPEL_ALLOW_SERVER_SIGNING=True (with legal review)."
+                        ]
+                    })
+                sub_cls = FielServerSideSerializer
+            else:
+                sub_cls = FielClientSideSerializer
+        elif backend == "manual":
+            sub_cls = ManualSignatureSerializer
+        else:  # fake
+            sub_cls = FakeSignatureSerializer
+
+        sub = sub_cls(data=data)
+        sub.is_valid(raise_exception=True)
+        return dict(sub.validated_data)
+
+
 class TransitionRequestSerializer(serializers.Serializer):
     """Request body para POST /transition/.
 
-    D2: sin signature field — S13.6 lo agregará polimórfico.
+    S13.6: extendido con `signature` nested polimórfico opcional.
     """
 
     target_state = serializers.CharField(required=True, allow_blank=False)
@@ -41,6 +133,7 @@ class TransitionRequestSerializer(serializers.Serializer):
     condiciones = serializers.CharField(
         required=False, allow_blank=True, allow_null=True, default=None
     )
+    signature = SignatureRequestSerializer(required=False, allow_null=True)
 
 
 class TransitionResponseSerializer(serializers.Serializer):
