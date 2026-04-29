@@ -367,3 +367,100 @@ def test_transition_without_signature_backward_compat(
         format="json",
     )
     assert resp.status_code == 201, resp.content
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S13.6 T5 — Security checklist item 4: logs no leak password/key
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(SINPAPEL_ALLOW_SERVER_SIGNING=True)
+def test_modo_b_logs_do_not_leak_password(
+    transition_setup, solicitud_with_flujo, api_client_authenticated,
+    fiel_keypair_for_e2e, caplog,
+):
+    """Security checklist item 4: password NO aparece en log capture durante request modo B."""
+    # Override password con string único + rastreable en el log
+    secret_password = "TOP_SECRET_PASSWORD_2026_S136_NEVER_LEAK"
+    # Re-keypair usando el password único
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COMMON_NAME, "LEAK TEST"),
+        x509.NameAttribute(NameOID.SERIAL_NUMBER, "TESTLEAK"),
+    ])
+    now = _dt.datetime.now(_dt.timezone.utc)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject).issuer_name(issuer)
+        .public_key(private_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - _dt.timedelta(days=1))
+        .not_valid_after(now + _dt.timedelta(days=365))
+        .sign(private_key, hashes.SHA256())
+    )
+    cert_der = cert.public_bytes(serialization.Encoding.DER)
+    key_der = private_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.BestAvailableEncryption(
+            secret_password.encode("utf-8")
+        ),
+    )
+
+    cer_file = SimpleUploadedFile("c.cer", cert_der)
+    key_file = SimpleUploadedFile("c.key", key_der)
+
+    with caplog.at_level("DEBUG"):
+        resp = api_client_authenticated.post(
+            f"/sinpapel/api/solicitudes-sig/{solicitud_with_flujo.pk}/transition/",
+            data={
+                "target_state": "S13_6_DESTINO",
+                "signature.backend": "fiel",
+                "signature.mode": "server-side",
+                "signature.cer_file": cer_file,
+                "signature.key_file": key_file,
+                "signature.password": secret_password,
+            },
+            format="multipart",
+        )
+
+    assert resp.status_code == 201, resp.content
+    full_log = "\n".join(rec.message for rec in caplog.records)
+    full_log += "\n" + "\n".join(str(rec.args) for rec in caplog.records if rec.args)
+    assert secret_password not in full_log, (
+        f"SECURITY REGRESSION: password leaked to logs: {full_log[:500]}"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(SINPAPEL_ALLOW_SERVER_SIGNING=True)
+def test_modo_b_logs_do_not_leak_key_bytes_marker(
+    transition_setup, solicitud_with_flujo, api_client_authenticated,
+    fiel_keypair_for_e2e, caplog,
+):
+    """Security checklist item 4: key bytes (binarios) NO aparecen en log capture."""
+    cer_file = SimpleUploadedFile("c.cer", fiel_keypair_for_e2e["cert_der"])
+    key_file = SimpleUploadedFile("c.key", fiel_keypair_for_e2e["key_der"])
+
+    with caplog.at_level("DEBUG"):
+        api_client_authenticated.post(
+            f"/sinpapel/api/solicitudes-sig/{solicitud_with_flujo.pk}/transition/",
+            data={
+                "target_state": "S13_6_DESTINO",
+                "signature.backend": "fiel",
+                "signature.mode": "server-side",
+                "signature.cer_file": cer_file,
+                "signature.key_file": key_file,
+                "signature.password": fiel_keypair_for_e2e["password"].decode(),
+            },
+            format="multipart",
+        )
+
+    full_log = "\n".join(str(rec.getMessage()) for rec in caplog.records)
+    # Una marca de bytes del key encrypted unique a SAT FIEL DER PKCS#8
+    # (los primeros bytes son el ASN.1 sequence header)
+    key_bytes_repr = repr(fiel_keypair_for_e2e["key_der"][:16])
+    assert key_bytes_repr not in full_log, (
+        f"SECURITY REGRESSION: key bytes leaked to logs"
+    )
