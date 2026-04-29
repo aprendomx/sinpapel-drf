@@ -158,3 +158,114 @@ def test_flujo_export_flujo_not_found_returns_404(client_admin):
     """pk inexistente → 404."""
     resp = client_admin.get("/sinpapel/api/flujos/99999999/export/")
     assert resp.status_code == 404
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T2 — FlujoImportView
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _build_import_payload(catalog_setup_fixture, rename_to: str | None = None) -> dict:
+    """Helper: produce payload import JSON desde catalog_setup."""
+    from sinpapel.schemas.flujo_export import serialize_flujo
+    data = serialize_flujo(catalog_setup_fixture["flujo"])
+    if rename_to:
+        data["flujo"]["nombre"] = rename_to
+    return data
+
+
+@pytest.mark.django_db
+def test_flujo_import_admin_happy_path(catalog_setup, client_admin):
+    """POST /import/ admin happy → 201 + body {id, nombre, activo, counts}."""
+    from sinpapel.models import VersionFlujo
+
+    payload = _build_import_payload(catalog_setup, rename_to="S139_IMPORT_HAPPY")
+    resp = client_admin.post(
+        "/sinpapel/api/flujos/import/", data=payload, format="json",
+    )
+    assert resp.status_code == 201, resp.content
+    body = resp.json()
+    assert body["nombre"] == "S139_IMPORT_HAPPY"
+    assert body["activo"] is False  # safe default
+    assert body["transiciones_count"] == 1
+    assert body["requisitos_count"] == 1
+    assert "id" in body
+
+    # Verify DB persistence
+    assert VersionFlujo.objects.filter(nombre="S139_IMPORT_HAPPY").exists()
+
+
+@pytest.mark.django_db
+def test_flujo_import_dry_run_returns_200_no_persist(catalog_setup, client_admin):
+    """?dry_run=true → 200 + dry_run flag + DB unchanged."""
+    from sinpapel.models import VersionFlujo
+
+    payload = _build_import_payload(catalog_setup, rename_to="S139_DRY_RUN")
+    count_before = VersionFlujo.objects.count()
+    resp = client_admin.post(
+        "/sinpapel/api/flujos/import/?dry_run=true",
+        data=payload, format="json",
+    )
+    assert resp.status_code == 200, resp.content
+    body = resp.json()
+    assert body["dry_run"] is True
+    assert body["would_create"]["nombre"] == "S139_DRY_RUN"
+    assert VersionFlujo.objects.count() == count_before
+    assert not VersionFlujo.objects.filter(nombre="S139_DRY_RUN").exists()
+
+
+@pytest.mark.django_db
+def test_flujo_import_non_admin_returns_403(catalog_setup, client_non_admin):
+    """Non-admin POST → 403."""
+    payload = _build_import_payload(catalog_setup, rename_to="S139_NONADM")
+    resp = client_non_admin.post(
+        "/sinpapel/api/flujos/import/", data=payload, format="json",
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_flujo_import_missing_entities_returns_400(client_admin, db):
+    """Missing entities → 400 con mensaje exacto (PAT-E-523)."""
+    payload = {
+        "schema_version": "0.1",
+        "flujo": {
+            "nombre": "S139_MISSING",
+            "descripcion": "",
+            "activo": False,
+            "metadatos": None,
+            "transiciones": [{
+                "estado_origen": "MISSING_X_S139",
+                "estado_destino": "MISSING_Y_S139",
+                "grupos_permitidos": [],
+            }],
+            "requisitos": [],
+        },
+    }
+    resp = client_admin.post(
+        "/sinpapel/api/flujos/import/", data=payload, format="json",
+    )
+    assert resp.status_code == 400, resp.content
+    assert "Missing entities" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_flujo_import_duplicate_flujo_returns_400(catalog_setup, client_admin):
+    """Mismo nombre que existing → 400 con sugerencia."""
+    payload = _build_import_payload(catalog_setup)  # NO rename = mismo nombre
+    resp = client_admin.post(
+        "/sinpapel/api/flujos/import/", data=payload, format="json",
+    )
+    assert resp.status_code == 400
+    assert "already exists" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_flujo_import_unsupported_schema_version_returns_400(client_admin, db):
+    """schema_version != 0.1 → 400."""
+    payload = {"schema_version": "0.2", "flujo": {}}
+    resp = client_admin.post(
+        "/sinpapel/api/flujos/import/", data=payload, format="json",
+    )
+    assert resp.status_code == 400
+    assert "Unsupported schema_version" in resp.content.decode()
