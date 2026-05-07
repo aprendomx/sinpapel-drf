@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "sinpapel>=0.1.0,<0.2",
+    "sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.1.0",
     "djangorestframework>=3.14",
 ]
 
