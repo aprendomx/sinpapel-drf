@@ -309,3 +309,48 @@ def test_transition_request_signature_optional():
 
     s = TransitionRequestSerializer(data={"target_state": "EN_REVISION"})
     assert s.is_valid(), s.errors
+
+
+# ── Task 1: Preview Transition serializers ────────────────────────────────
+
+def test_preview_transition_request_requires_target_state():
+    from sinpapel_drf.serializers import PreviewTransitionRequestSerializer
+
+    s = PreviewTransitionRequestSerializer(data={})
+    assert not s.is_valid()
+    assert "target_state" in s.errors
+
+
+def test_preview_transition_request_rejects_blank_target_state():
+    from sinpapel_drf.serializers import PreviewTransitionRequestSerializer
+
+    s = PreviewTransitionRequestSerializer(data={"target_state": ""})
+    assert not s.is_valid()
+    assert "target_state" in s.errors
+
+
+def test_preview_transition_request_accepts_target_state():
+    from sinpapel_drf.serializers import PreviewTransitionRequestSerializer
+
+    s = PreviewTransitionRequestSerializer(data={"target_state": "Aprobado"})
+    assert s.is_valid(), s.errors
+    assert s.validated_data["target_state"] == "Aprobado"
+
+
+def test_preview_transition_response_serializes_full_report():
+    from sinpapel_drf.serializers import PreviewTransitionResponseSerializer
+
+    report = {
+        "permitido": True,
+        "razones_bloqueo": [],
+        "documentos_faltantes": [],
+        "predicados_fallidos": [{"condicion_id": 1, "tipo": "json_logic", "mensaje": "x"}],
+        "aprobadores_requeridos": [],
+        "side_effects": ["Aprobado"],
+        "historial_reciente": [{"fecha": "2026-01-01T00:00:00", "transicion": "A→B",
+                                 "usuario": "alice", "comentarios": "c"}],
+    }
+    s = PreviewTransitionResponseSerializer(report)
+    assert s.data["permitido"] is True
+    assert s.data["side_effects"] == ["Aprobado"]
+    assert s.data["predicados_fallidos"][0]["condicion_id"] == 1

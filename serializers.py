@@ -166,3 +166,27 @@ class HistoryEntrySerializer(serializers.Serializer):
     history_change_reason = serializers.CharField(
         allow_null=True, allow_blank=True, required=False
     )
+
+
+# ── v0.2.0: Preview transition serializers ─────────────────────────────────
+
+
+class PreviewTransitionRequestSerializer(serializers.Serializer):
+    """Request body para POST /<res>/<pk>/preview-transition/."""
+
+    target_state = serializers.CharField(required=True, allow_blank=False)
+
+
+class PreviewTransitionResponseSerializer(serializers.Serializer):
+    """Response shape de WorkflowEngine.preview_transition().
+
+    Mapea el dict retornado por engine.preview_transition() — no es un Model.
+    """
+
+    permitido = serializers.BooleanField()
+    razones_bloqueo = serializers.ListField(child=serializers.DictField())
+    documentos_faltantes = serializers.ListField(child=serializers.DictField())
+    predicados_fallidos = serializers.ListField(child=serializers.DictField())
+    aprobadores_requeridos = serializers.ListField(child=serializers.DictField())
+    side_effects = serializers.ListField(child=serializers.CharField())
+    historial_reciente = serializers.ListField(child=serializers.DictField())
