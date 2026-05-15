@@ -215,6 +215,33 @@ class WorkflowViewSet(GenericViewSet):
         serializer = HistoryEntrySerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @action(
+        detail=True, methods=["post"], url_path="preview-transition",
+    )
+    def preview_transition(self, request, pk=None):
+        """POST .../preview-transition/ — simulate transition + return impact report.
+
+        Reusa instance.preview_transition(target, user) (sinpapel v0.4.0). NO muta.
+        Bloqueos vienen en `permitido=false` + `razones_bloqueo`. NO ejecuta
+        side-effects ni dispara firmas.
+        """
+        from sinpapel_drf.serializers import (
+            PreviewTransitionRequestSerializer,
+            PreviewTransitionResponseSerializer,
+        )
+
+        instance = self.get_object()
+
+        req = PreviewTransitionRequestSerializer(data=request.data)
+        req.is_valid(raise_exception=True)
+
+        report = instance.preview_transition(
+            target_state_name=req.validated_data["target_state"],
+            user=request.user,
+        )
+        resp = PreviewTransitionResponseSerializer(report)
+        return Response(resp.data)
+
 
 def build_viewset_for(config: "WorkflowConfig") -> type[WorkflowViewSet]:
     """Construye subclase dinámica de WorkflowViewSet parametrizada por modelo.
