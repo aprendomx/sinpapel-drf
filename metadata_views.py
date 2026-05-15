@@ -14,6 +14,8 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Any
 
+from rest_framework.serializers import Serializer
+
 from sinpapel.forms import MetaFormFactory
 from sinpapel.mixins import CampoMetadato
 
@@ -48,7 +50,7 @@ def campo_to_dict(campo: CampoMetadato) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=None)
-def get_meta_serializer_class(model_cls: type) -> type:
+def get_meta_serializer_class(model_cls: type) -> type[Serializer]:
     """Build + cache the DRF Serializer subclass for SCHEMA_METADATOS.
 
     Cache-safe: SCHEMA_METADATOS is a ClassVar of immutable frozen dataclasses.
