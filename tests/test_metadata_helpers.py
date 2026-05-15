@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
-
 from sinpapel.mixins import CampoMetadato
 
 
@@ -63,10 +61,6 @@ def test_get_meta_serializer_class_is_cached():
 def test_campo_metadato_serializer_outputs_complete_shape():
     from sinpapel_drf.serializers import CampoMetadatoSerializer
 
-    c = CampoMetadato(
-        nombre="edad", tipo=int, requerido=False, default=18,
-        choices=None, etiqueta="Edad", ayuda="años cumplidos",
-    )
     payload = {
         "nombre": "edad", "tipo": "int", "requerido": False,
         "default": 18, "choices": None, "etiqueta": "Edad",
