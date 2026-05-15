@@ -181,3 +181,108 @@ def test_sla_retrieve(estado, api_admin):
     resp = api_admin.get(f"/sinpapel/api/slas/{sla.id}/")
     assert resp.status_code == 200
     assert resp.json()["accion_vencimiento"] == "escalar"
+
+
+# ── Task 7: per-instance sla_status action ─────────────────────────────────
+
+from datetime import timedelta
+
+from sinpapel.registry import WorkflowConfig, WorkflowRegistry
+
+
+@pytest.fixture
+def expose_sla_config(cleanup_registry):
+    from creditos.models import Solicitud
+
+    config = WorkflowConfig(
+        model=Solicitud,
+        state_field="estado",
+        workflow_key="solicitud_sla_t",
+        expose_endpoints=True,
+        endpoint_slug="solicitudes-sla",
+    )
+    WorkflowRegistry.register("solicitud_sla_t", config)
+    yield config
+
+
+@pytest.fixture
+def solicitud_for_sla(estado, db):
+    from creditos.models import ProductoCreditoFOVISSSTE, Solicitud
+
+    producto = ProductoCreditoFOVISSSTE.objects.create(
+        nombre="P_SLA", clave="P-SLA", identificador="SL",
+        marca="TEST", monto_minimo=0, monto_maximo=0,
+        tasa_interes=0, tasa_interes_moratorio=0,
+    )
+    return Solicitud.objects.create(
+        producto=producto, estado=estado, monto_solicitado=100,
+    )
+
+
+@pytest.fixture
+def api_admin_sla(expose_sla_config, admin_user, settings):
+    import sinpapel_drf.urls
+    importlib.reload(sinpapel_drf.urls)
+    mod = type("TestURLConfSLAStatus", (), {
+        "urlpatterns": [path("sinpapel/api/", include(sinpapel_drf.urls.urlpatterns))],
+    })
+    sys.modules["test_urlconf_sla_status"] = mod
+    settings.ROOT_URLCONF = "test_urlconf_sla_status"
+    clear_url_caches()
+    client = APIClient()
+    client.force_authenticate(user=admin_user)
+    yield client
+    sys.modules.pop("test_urlconf_sla_status", None)
+    clear_url_caches()
+
+
+@pytest.mark.django_db
+def test_sla_status_no_sla_returns_empty_list(solicitud_for_sla, api_admin_sla):
+    resp = api_admin_sla.post(
+        f"/sinpapel/api/solicitudes-sla/{solicitud_for_sla.pk}/sla-status/"
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.django_db
+def test_sla_status_not_expired_returns_empty_list(
+    solicitud_for_sla, estado, api_admin_sla,
+):
+    from sinpapel.models import SLAConfiguracion
+
+    SLAConfiguracion.objects.create(
+        estado=estado, dias_maximos=99,  # not yet expired
+        accion_vencimiento="notificar",
+    )
+    resp = api_admin_sla.post(
+        f"/sinpapel/api/solicitudes-sla/{solicitud_for_sla.pk}/sla-status/"
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.django_db
+def test_sla_status_expired_executes_action(
+    solicitud_for_sla, estado, api_admin_sla,
+):
+    from django.utils import timezone
+
+    from sinpapel.models import SLAConfiguracion
+
+    SLAConfiguracion.objects.create(
+        estado=estado, dias_maximos=1, accion_vencimiento="notificar",
+        configuracion_accion={"template": "vencido.html"},
+    )
+    # Backdate so SLA is expired
+    solicitud_for_sla.creado = timezone.now() - timedelta(days=5)
+    solicitud_for_sla.save(update_fields=["creado"])
+
+    resp = api_admin_sla.post(
+        f"/sinpapel/api/solicitudes-sla/{solicitud_for_sla.pk}/sla-status/"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert isinstance(body, list)
+    assert len(body) == 1
+    assert body[0]["accion"] == "notificar"

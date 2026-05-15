@@ -33,7 +33,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
@@ -293,6 +293,22 @@ class WorkflowViewSet(GenericViewSet):
             )
 
         return Response(instance.meta.to_dict())
+
+    @action(
+        detail=True, methods=["post"], url_path="sla-status",
+        permission_classes=[IsAdminUser],
+    )
+    def sla_status(self, request, pk=None):
+        """POST .../sla-status/ — evaluate SLA per-instance.
+
+        Wraps SLAEngine.evaluar_instancia(). May mutate the instance (the
+        `alertar` action sets fields), hence POST + IsAdminUser.
+        Returns list of actions executed, or [] if not expired / no SLAs apply.
+        """
+        from sinpapel.services.sla_engine import SLAEngine
+        instance = self.get_object()
+        result = SLAEngine.evaluar_instancia(instance)
+        return Response(result)
 
 
 def build_viewset_for(config: "WorkflowConfig") -> type[WorkflowViewSet]:
