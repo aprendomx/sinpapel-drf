@@ -207,3 +207,15 @@ class CampoMetadatoSerializer(serializers.Serializer):
     )
     etiqueta = serializers.CharField(allow_blank=True)
     ayuda = serializers.CharField(allow_blank=True)
+
+
+# ── v0.2.0: CondicionTransicion ModelSerializer ────────────────────────────
+
+
+class CondicionTransicionSerializer(serializers.ModelSerializer):
+    """Serializer para CRUD de CondicionTransicion (predicados de transición)."""
+
+    class Meta:
+        from sinpapel.models import CondicionTransicion as _Model
+        model = _Model
+        fields = "__all__"

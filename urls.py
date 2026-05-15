@@ -6,19 +6,24 @@ Consumer must include this in their root urls.py:
         path("sinpapel/api/", include("sinpapel_drf.urls")),
     ]
 
-S13.4: SinpapelRouter() instantiated eager at module import. Django evaluates
-urls.py LAZY post-startup, so all apps have completed apps.ready() and
-registered their @workflow_enabled models by the time this module loads.
-
-S13.9: appended flow portability endpoints (export/import VersionFlujo).
+v0.2.0: admin_router publishes /condiciones/ + /slas/. SinpapelRouter
+continues to publish per-workflow-enabled-model resources dynamically.
 """
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
+from sinpapel_drf.condicion_viewset import CondicionTransicionViewSet
 from sinpapel_drf.flow_views import FlujoExportView, FlujoImportView
 from sinpapel_drf.routers import SinpapelRouter
+# from sinpapel_drf.sla_viewset import SLAConfiguracionViewSet  # Task 6 enables this
 
 router = SinpapelRouter()
-urlpatterns = router.urls + [
+
+admin_router = DefaultRouter()
+admin_router.register("condiciones", CondicionTransicionViewSet, basename="condicion")
+# admin_router.register("slas", SLAConfiguracionViewSet, basename="sla")  # Task 6
+
+urlpatterns = router.urls + admin_router.urls + [
     path(
         "flujos/<int:pk>/export/",
         FlujoExportView.as_view(),
