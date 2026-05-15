@@ -190,3 +190,20 @@ class PreviewTransitionResponseSerializer(serializers.Serializer):
     aprobadores_requeridos = serializers.ListField(child=serializers.DictField())
     side_effects = serializers.ListField(child=serializers.CharField())
     historial_reciente = serializers.ListField(child=serializers.DictField())
+
+
+# ── v0.2.0: Metadatos schema serializer ────────────────────────────────────
+
+
+class CampoMetadatoSerializer(serializers.Serializer):
+    """Readonly serializer for one CampoMetadato — used in GET /metadatos/ schema."""
+
+    nombre = serializers.CharField()
+    tipo = serializers.CharField()  # "str" | "int" | "bool" | "Decimal" | "date"
+    requerido = serializers.BooleanField()
+    default = serializers.JSONField(allow_null=True)
+    choices = serializers.ListField(
+        child=serializers.CharField(), allow_null=True, required=False,
+    )
+    etiqueta = serializers.CharField(allow_blank=True)
+    ayuda = serializers.CharField(allow_blank=True)
