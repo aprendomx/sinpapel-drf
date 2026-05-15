@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -241,6 +242,57 @@ class WorkflowViewSet(GenericViewSet):
         )
         resp = PreviewTransitionResponseSerializer(report)
         return Response(resp.data)
+
+    @action(detail=True, methods=["get", "patch"], url_path="metadatos")
+    def metadatos(self, request, pk=None):
+        """GET / PATCH .../metadatos/ — captura estructurada via MetadatosCapturables.
+
+        GET → {schema: [...], values: {...}}.
+        PATCH → partial update validado via factory-built serializer.
+        """
+        from sinpapel_drf.metadata_views import (
+            campo_to_dict, get_meta_serializer_class,
+        )
+
+        instance = self.get_object()
+        model_cls = type(instance)
+        schema = list(getattr(model_cls, "SCHEMA_METADATOS", []))
+
+        if request.method == "GET":
+            try:
+                values = instance.meta.to_dict()
+            except AttributeError:
+                # Modelo sin MetadatosCapturables — devuelve values vacíos
+                values = {}
+            return Response({
+                "schema": [campo_to_dict(c) for c in schema],
+                "values": values,
+            })
+
+        # PATCH
+        allowed_keys = {c.nombre for c in schema}
+        unknown = set(request.data.keys()) - allowed_keys
+        if unknown:
+            raise ValidationError(
+                {k: ["Campo no definido en SCHEMA_METADATOS"] for k in unknown}
+            )
+
+        Serializer = get_meta_serializer_class(model_cls)
+        s = Serializer(data=request.data, partial=True)
+        s.is_valid(raise_exception=True)
+
+        try:
+            for key, value in s.validated_data.items():
+                setattr(instance.meta, key, value)
+            instance.save()
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"detail": [str(exc)]})
+        except DjangoValidationError as exc:
+            raise ValidationError(
+                getattr(exc, "message_dict", {"detail": list(exc.messages)})
+            )
+
+        return Response(instance.meta.to_dict())
 
 
 def build_viewset_for(config: "WorkflowConfig") -> type[WorkflowViewSet]:
