@@ -15,13 +15,13 @@ from rest_framework.routers import DefaultRouter
 from sinpapel_drf.condicion_viewset import CondicionTransicionViewSet
 from sinpapel_drf.flow_views import FlujoExportView, FlujoImportView
 from sinpapel_drf.routers import SinpapelRouter
-# from sinpapel_drf.sla_viewset import SLAConfiguracionViewSet  # Task 6 enables this
+from sinpapel_drf.sla_viewset import SLAConfiguracionViewSet
 
 router = SinpapelRouter()
 
 admin_router = DefaultRouter()
 admin_router.register("condiciones", CondicionTransicionViewSet, basename="condicion")
-# admin_router.register("slas", SLAConfiguracionViewSet, basename="sla")  # Task 6
+admin_router.register("slas", SLAConfiguracionViewSet, basename="sla")
 
 urlpatterns = router.urls + admin_router.urls + [
     path(

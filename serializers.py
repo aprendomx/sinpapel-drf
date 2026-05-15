@@ -219,3 +219,15 @@ class CondicionTransicionSerializer(serializers.ModelSerializer):
         from sinpapel.models import CondicionTransicion as _Model
         model = _Model
         fields = "__all__"
+
+
+# ── v0.2.0: SLAConfiguracion ModelSerializer ────────────────────────────────
+
+
+class SLAConfiguracionSerializer(serializers.ModelSerializer):
+    """Serializer para CRUD de SLAConfiguracion (timers / SLA por estado)."""
+
+    class Meta:
+        from sinpapel.models import SLAConfiguracion as _Model
+        model = _Model
+        fields = "__all__"
