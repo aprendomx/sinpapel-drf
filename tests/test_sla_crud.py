@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import importlib
 import sys
+from datetime import timedelta
 
 import pytest
 from django.contrib.auth.models import User
 from django.urls import clear_url_caches, include, path
 from rest_framework.test import APIClient
+
+from sinpapel.registry import WorkflowConfig, WorkflowRegistry
 
 
 @pytest.fixture
@@ -184,10 +187,6 @@ def test_sla_retrieve(estado, api_admin):
 
 
 # ── Task 7: per-instance sla_status action ─────────────────────────────────
-
-from datetime import timedelta
-
-from sinpapel.registry import WorkflowConfig, WorkflowRegistry
 
 
 @pytest.fixture
