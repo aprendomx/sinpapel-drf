@@ -479,6 +479,134 @@ Ver `sinpapel/schemas/flujo_export.py` (schema v0.1).
 
 ---
 
+## 8b. Endpoints v0.2.0
+
+Adicionales que expone v0.2.0 sobre las 5 features nuevas de `sinpapel` v0.4.0
+(predicados de transición, captura de metadatos, Serializer Factory, SLAs, preview).
+
+### Preview transition (no mutation)
+
+`POST /<slug>/<pk>/preview-transition/` — simula la transición y retorna un reporte
+de impacto. NO ejecuta side-effects, NO firma, NO muta la instancia ni el historial.
+
+```bash
+curl -X POST -H "Authorization: Token ..." \
+     -H "Content-Type: application/json" \
+     -d '{"target_state": "Aprobado"}' \
+     https://host/sinpapel/api/solicitudes/42/preview-transition/
+```
+
+Response 200:
+
+```json
+{
+  "permitido": true,
+  "razones_bloqueo": [],
+  "documentos_faltantes": [],
+  "predicados_fallidos": [],
+  "aprobadores_requeridos": [],
+  "side_effects": [],
+  "historial_reciente": [{"fecha": "...", "transicion": "Borrador → Revisión",
+                          "usuario": "alice", "comentarios": "..."}]
+}
+```
+
+Si `permitido=false`, `razones_bloqueo` incluye al menos un objeto `{tipo, mensaje}`
+con `tipo ∈ {estado, transicion, documento, permiso, predicado}`. Permission:
+`IsAuthenticated`.
+
+### Metadatos (read + partial update)
+
+`GET /<slug>/<pk>/metadatos/` — retorna `{schema, values}` para modelos que heredan
+`MetadatosCapturables`. El schema se construye desde `SCHEMA_METADATOS`.
+
+```bash
+curl https://host/sinpapel/api/solicitudes/42/metadatos/
+```
+
+```json
+{
+  "schema": [
+    {"nombre": "rfc", "tipo": "str", "requerido": true,
+     "default": null, "choices": null, "etiqueta": "RFC", "ayuda": ""}
+  ],
+  "values": {"rfc": "ABCD010101ABC"}
+}
+```
+
+`PATCH /<slug>/<pk>/metadatos/` — update parcial. Valida con un Serializer DRF
+construido dinámicamente vía `MetaFormFactory.build_serializer()`, cacheado por
+modelo. Rechaza keys fuera del schema con 400.
+
+```bash
+curl -X PATCH -H "Content-Type: application/json" \
+     -d '{"rfc": "ABCD010101ABC"}' \
+     https://host/sinpapel/api/solicitudes/42/metadatos/
+```
+
+Permission: `IsAuthenticated`.
+
+### Predicados de transición (admin CRUD)
+
+`CondicionTransicion` se gestiona como ModelViewSet:
+
+```bash
+# List + filter
+curl https://host/sinpapel/api/condiciones/?transicion=7&activo=true
+
+# Create
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"transicion": 7, "tipo": "json_logic",
+          "configuracion": {"logic": {">": [{"var": "monto"}, 0]}},
+          "mensaje_error": "Monto inválido", "orden": 1, "activo": true}' \
+     https://host/sinpapel/api/condiciones/
+
+# Update / Delete
+curl -X PATCH -d '{"activo": false}' https://host/sinpapel/api/condiciones/123/
+curl -X DELETE https://host/sinpapel/api/condiciones/123/
+```
+
+`tipo` admite `python_path`, `json_logic`, `django_orm`. Permission: `IsAdminUser`.
+
+### SLAs (admin CRUD + verificación)
+
+`SLAConfiguracion` (timers por estado) se gestiona como ModelViewSet:
+
+```bash
+# List + filter
+curl https://host/sinpapel/api/slas/?estado=3
+
+# Create
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"estado": 3, "dias_maximos": 7,
+          "accion_vencimiento": "notificar",
+          "configuracion_accion": {"grupo_id": 1, "template": "vence.html"}}' \
+     https://host/sinpapel/api/slas/
+
+# Mass verification (equiv. management command)
+curl -X POST https://host/sinpapel/api/slas/verificar/
+# → 200 {"ejecutadas": {"notificar": 3, "escalar": 1}}
+
+# Per-instance evaluation (may mutate via 'alertar' action)
+curl -X POST https://host/sinpapel/api/solicitudes/42/sla-status/
+# → 200 [] | 200 [{"accion": "notificar", ...}]
+```
+
+`accion_vencimiento` admite `notificar`, `escalar`, `rechazar`, `alertar`.
+Permission: `IsAdminUser` (CRUD + verificar + sla-status).
+
+### Resumen de permisos v0.2.0
+
+| Endpoint | Permission |
+|---|---|
+| `preview-transition` | `IsAuthenticated` |
+| `metadatos` (GET/PATCH) | `IsAuthenticated` |
+| `sla-status` | `IsAdminUser` (puede mutar) |
+| `condiciones/*` | `IsAdminUser` |
+| `slas/*` + `slas/verificar/` | `IsAdminUser` |
+
+---
+
 ## 9. Security checklist (ADR-012)
 
 Implementation status del checklist completo de [ADR-012](../dev/decisions/adr-012-fiel-dual-mode-signing.md):

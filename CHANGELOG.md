@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-15
+
+Expone sinpapel v0.4.0 features sobre HTTP. Dep bump: `sinpapel @ v0.1.1 → @v0.4.0`.
+
+### Added
+
+- **`POST /<slug>/<pk>/preview-transition/`** — simula transición y retorna reporte de impacto (`permitido`, `razones_bloqueo`, `documentos_faltantes`, `predicados_fallidos`, `aprobadores_requeridos`, `side_effects`, `historial_reciente`). NO muta. Reusa `WorkflowEngine.preview_transition()`. `IsAuthenticated`.
+- **`GET /<slug>/<pk>/metadatos/`** — retorna `{schema, values}` para modelos que heredan `MetadatosCapturables`. Schema construido desde `SCHEMA_METADATOS`. `IsAuthenticated`.
+- **`PATCH /<slug>/<pk>/metadatos/`** — update parcial validado por serializer DRF construido dinámicamente vía `MetaFormFactory.build_serializer()` y cacheado por modelo (`functools.lru_cache`). Rechaza keys fuera de schema con 400. Mapea `TypeError`/`ValueError`/`DjangoValidationError` a 400.
+- **`POST /<slug>/<pk>/sla-status/`** — evalúa SLA per-instance via `SLAEngine.evaluar_instancia()`. POST porque la acción `alertar` puede mutar campos. `IsAdminUser`.
+- **`GET/POST /condiciones/` + detail CRUD** — ModelViewSet sobre `CondicionTransicion` (predicados de transición). Filtros: `?transicion=<id>`, `?activo=<bool>`. `IsAdminUser`.
+- **`GET/POST /slas/` + detail CRUD** — ModelViewSet sobre `SLAConfiguracion`. Filtros: `?estado=<id>`, `?activo=<bool>`. `IsAdminUser`. `IntegrityError` (unique_together violation) → 400.
+- **`POST /slas/verificar/`** — dispara `SLAEngine.verificar_todos()`. Retorna `{ejecutadas: {...}}`. `IsAdminUser`.
+- **`metadata_views.py`** — helpers internos: `get_meta_serializer_class(model_cls)` con cache y `campo_to_dict(campo)` para serializar `CampoMetadato`.
+- **5 nuevos serializers** en `serializers.py`: `PreviewTransitionRequestSerializer`, `PreviewTransitionResponseSerializer`, `CampoMetadatoSerializer`, `CondicionTransicionSerializer`, `SLAConfiguracionSerializer`.
+- **28 tests E2E nuevos** distribuidos en 5 archivos (`test_preview_transition.py`, `test_metadatos_endpoint.py`, `test_metadata_helpers.py`, `test_condicion_crud.py`, `test_sla_crud.py`).
+
+### Changed
+
+- `urls.py` ahora monta un `DefaultRouter` adicional (`admin_router`) para los recursos top-level `condiciones` y `slas`, alongside del `SinpapelRouter` dinámico per-modelo.
+- `WorkflowViewSet` ahora expone 6 acciones (antes 3): se suman `preview_transition`, `metadatos` (GET+PATCH), `sla_status`. Permisos override por acción (`sla_status` requiere `IsAdminUser`).
+
+### Dependencies
+
+- `sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.4.0` (era `@v0.1.1`).
+
 ## [0.1.0] - 2026-04-29
 
 Initial alpha release. DRF HTTP layer for [sinpapel](https://github.com/jadrians/creditos/tree/main/sinpapel) workflow + signature engine. Released with `sinpapel >=0.1.0,<0.2`.
