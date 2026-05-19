@@ -1,11 +1,8 @@
 """sinpapel-drf — DRF HTTP layer for sinpapel.
 
-Auto-routing desde @workflow_enabled decorator + ViewSets + serializers
-polimórficos para signature backends + permission classes integradas con
+Auto-routing from @workflow_enabled decorator + ViewSets + polymorphic
+serializers for signature backends + permission classes integrated with
 ConfiguracionTransicion.grupos_permitidos.
-
-Las re-exports públicas (WorkflowViewSet, SinpapelRouter, SignatureRequestSerializer,
-GruposPermitidosPermission) se agregarán en stories S13.4-S13.6.
 """
 __version__ = "0.2.1"
 

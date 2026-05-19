@@ -3,8 +3,9 @@ name = "sinpapel-drf"
 version = "0.2.1"
 description = "DRF HTTP layer for sinpapel — auto-routing, ViewSets, signature serializers (extraído desde creditos/E13)"
 readme = "README.md"
-requires-python = ">=3.13"
-license = { text = "MIT" }
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     { name = "Julio Adrián", email = "jadrian.s@gmail.com" },
 ]
@@ -13,15 +14,18 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: Django",
     "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.1",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.4.2",
+    "sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.5.1",
     "djangorestframework>=3.14",
 ]
 
@@ -35,11 +39,12 @@ openapi = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jadrians/creditos"
-Issues = "https://github.com/jadrians/creditos/issues"
+Homepage = "https://github.com/aprendomx/sinpapel-drf"
+Source = "https://github.com/aprendomx/sinpapel-drf"
+Issues = "https://github.com/aprendomx/sinpapel-drf/issues"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 # Layout pyproject INSIDE-package (lección S12.8) — packages + package_dir explícitos

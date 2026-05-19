@@ -1,3 +1,37 @@
+Metadata-Version: 2.4
+Name: sinpapel-drf
+Version: 0.2.1
+Summary: DRF HTTP layer for sinpapel — auto-routing, ViewSets, signature serializers (extraído desde creditos/E13)
+Author-email: Julio Adrián <jadrian.s@gmail.com>
+License-Expression: GPL-3.0-or-later
+Project-URL: Homepage, https://github.com/aprendomx/sinpapel-drf
+Project-URL: Source, https://github.com/aprendomx/sinpapel-drf
+Project-URL: Issues, https://github.com/aprendomx/sinpapel-drf/issues
+Keywords: django,drf,rest-framework,workflow,sinpapel,fiel,tramites
+Classifier: Development Status :: 3 - Alpha
+Classifier: Framework :: Django
+Classifier: Framework :: Django :: 5.0
+Classifier: Framework :: Django :: 5.1
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.5.1
+Requires-Dist: djangorestframework>=3.14
+Provides-Extra: dev
+Requires-Dist: pytest>=9.0; extra == "dev"
+Requires-Dist: pytest-django>=4.12; extra == "dev"
+Provides-Extra: openapi
+Requires-Dist: drf-spectacular>=0.27; extra == "openapi"
+Dynamic: license-file
+
 # sinpapel-drf
 
 > **v0.2.1** — DRF HTTP layer for [sinpapel](https://github.com/aprendomx/sinpapel).

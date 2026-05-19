@@ -1,0 +1,9 @@
+sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.5.1
+djangorestframework>=3.14
+
+[dev]
+pytest>=9.0
+pytest-django>=4.12
+
+[openapi]
+drf-spectacular>=0.27

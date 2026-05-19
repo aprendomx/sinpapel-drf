@@ -74,7 +74,7 @@ dependencies = [
 ]
 ```
 
-Arrastra transitivamente `sinpapel @v0.4.1`. Requiere Python 3.13+, Django 5.0+, DRF 3.14+.
+Arrastra transitivamente `sinpapel @v0.5.1`. Requiere Python 3.10+, Django 5.0+, DRF 3.14+.
 
 ### Agregar a `INSTALLED_APPS`
 
@@ -475,7 +475,7 @@ El paquete trae 90+ tests unit + E2E que cubren routers, viewsets, serializers, 
 
 ## 13. Licencia y Contribuir
 
-MIT — ver [LICENSE](LICENSE).
+GPL-3.0-or-later — ver [LICENSE](LICENSE).
 
 Issues + PRs en https://github.com/aprendomx/sinpapel-drf/issues. Tag con `area/sinpapel-drf`.
 
