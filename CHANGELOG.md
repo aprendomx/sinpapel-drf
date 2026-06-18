@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-19
+
+Actualiza dependencia del core y metadatos del paquete.
+
+### Dependencies
+
+- `sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.5.1` (era `@v0.4.2`).
+
+### Changed
+
+- Relicencia de MIT a `GPL-3.0-or-later` (SPDX).
+- `requires-python` bajado de `>=3.13` a `>=3.10` para alinearse con el soporte real de sinpapel.
+- Classifiers actualizados: añadidos Django 5.1, Python 3.10, 3.11, 3.12.
+- `build-system` requiere `setuptools>=77` (PEP 639).
+
 ## [0.2.0] - 2026-05-15
 
 Expone sinpapel v0.4.0 features sobre HTTP. Dep bump: `sinpapel @ v0.1.1 → @v0.4.0`.
@@ -78,5 +93,7 @@ Initial alpha release. DRF HTTP layer for [sinpapel](https://github.com/jadrians
 - API versioning (`/v1/`) llega post-1.0.
 - Migration de 12 callers `WorkflowService` legacy en `creditos/views.py` — story sucesora post-E13.
 
-[Unreleased]: https://github.com/jadrians/creditos/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/jadrians/creditos/releases/tag/sinpapel-drf-v0.1.0
+[Unreleased]: https://github.com/aprendomx/sinpapel-drf/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/aprendomx/sinpapel-drf/releases/tag/v0.2.1
+[0.2.0]: https://github.com/aprendomx/sinpapel-drf/releases/tag/v0.2.0
+[0.1.0]: https://github.com/aprendomx/sinpapel-drf/releases/tag/v0.1.0
