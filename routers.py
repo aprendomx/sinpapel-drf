@@ -35,7 +35,16 @@ class SinpapelRouter(DefaultRouter):
         /<effective_slug>/<pk>/available-transitions/
         /<effective_slug>/<pk>/transition/
         /<effective_slug>/<pk>/history/
+
+    No registra el converter global ``drf_format_suffix`` de DRF
+    (``include_format_suffixes = False``): hacerlo colisiona con cualquier
+    otro DefaultRouter del proyecto consumidor cuando Django >= 5.1 hace que
+    ``register_converter`` falle al re-registrar un nombre ya existente
+    ("Converter 'drf_format_suffix' is already registered."). El content
+    negotiation por header ``Accept`` y ``?format=json`` sigue funcionando.
     """
+
+    include_format_suffixes = False
 
     def __init__(self) -> None:
         super().__init__()

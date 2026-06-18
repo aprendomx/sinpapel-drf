@@ -7,13 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-06-18
+
+Corrige un crash de arranque en proyectos consumidores y cambia el protocolo de
+la dependencia del core a HTTPS.
+
+### Fixed
+
+- **`Converter 'drf_format_suffix' is already registered.`** al importar
+  `sinpapel_drf.urls` en proyectos con Django ≥ 5.1 y DRF 3.16.0 (versión sin
+  guarda en `register_converter`). `SinpapelRouter` y el `admin_router` llamaban
+  ambos a `format_suffix_patterns`, registrando dos veces el converter global de
+  DRF. Ahora ambos routers usan `include_format_suffixes = False`: la librería ya
+  no registra ningún converter de proceso. El content negotiation por header
+  `Accept` y `?format=json` sigue funcionando; solo se retira el sufijo `.json`
+  en la URL (que ningún test ni endpoint del framework usaba).
+
+### Dependencies
+
+- `sinpapel @ git+https://github.com/aprendomx/sinpapel.git@v0.5.1` — protocolo
+  cambiado de `git+ssh` a `git+https` para instalación sin clave SSH (CI / runners).
+
 ## [0.2.1] - 2026-05-19
 
 Actualiza dependencia del core y metadatos del paquete.
 
 ### Dependencies
 
-- `sinpapel @ git+ssh://git@github.com/aprendomx/sinpapel.git@v0.5.1` (era `@v0.4.2`).
+- `sinpapel @ git+https://github.com/aprendomx/sinpapel.git@v0.5.1` (era `@v0.4.2`).
 
 ### Changed
 

@@ -20,6 +20,10 @@ from sinpapel_drf.sla_viewset import SLAConfiguracionViewSet
 router = SinpapelRouter()
 
 admin_router = DefaultRouter()
+# No registrar el converter global drf_format_suffix: dos routers en el mismo
+# proceso (o un router del proyecto consumidor) provocan que Django >= 5.1 lance
+# "Converter 'drf_format_suffix' is already registered.". Ver SinpapelRouter.
+admin_router.include_format_suffixes = False
 admin_router.register("condiciones", CondicionTransicionViewSet, basename="condicion")
 admin_router.register("slas", SLAConfiguracionViewSet, basename="sla")
 

@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtualenvs / tooling
+.venv/
+uv.lock
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
