@@ -222,10 +222,16 @@ class WorkflowViewSet(GenericViewSet):
     def preview_transition(self, request, pk=None):
         """POST .../preview-transition/ — simulate transition + return impact report.
 
-        Reusa instance.preview_transition(target, user) (sinpapel v0.4.0). NO muta.
+        Reusa WorkflowEngine.preview_transition(instance, target, user). NO muta.
         Bloqueos vienen en `permitido=false` + `razones_bloqueo`. NO ejecuta
         side-effects ni dispara firmas.
+
+        NOTA: el decorador @workflow_enabled (sinpapel >=0.5.1) NO inyecta
+        `preview_transition` en la instancia (solo available_transitions /
+        can_transition_to / transition). Invocar instance.preview_transition
+        levantaba AttributeError → HTTP 500. Se llama al engine directamente.
         """
+        from sinpapel.services.workflow_engine import WorkflowEngine
         from sinpapel_drf.serializers import (
             PreviewTransitionRequestSerializer,
             PreviewTransitionResponseSerializer,
@@ -236,9 +242,10 @@ class WorkflowViewSet(GenericViewSet):
         req = PreviewTransitionRequestSerializer(data=request.data)
         req.is_valid(raise_exception=True)
 
-        report = instance.preview_transition(
-            target_state_name=req.validated_data["target_state"],
-            user=request.user,
+        report = WorkflowEngine().preview_transition(
+            instance,
+            req.validated_data["target_state"],
+            request.user,
         )
         resp = PreviewTransitionResponseSerializer(report)
         return Response(resp.data)
