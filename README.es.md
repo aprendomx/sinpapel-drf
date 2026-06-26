@@ -40,6 +40,9 @@ Para cada modelo Django decorado con `@workflow_enabled(expose_endpoints=True)`,
 | `/<slug>/<pk>/preview-transition/` | POST | **v0.2.0** — Reporte de impacto sin mutación |
 | `/<slug>/<pk>/metadatos/` | GET / PATCH | **v0.2.0** — Schema de metadatos estructurados + update parcial |
 | `/<slug>/<pk>/sla-status/` | POST | **v0.2.0** — Evalúa SLA por instancia |
+| `/<slug>/<pk>/documentos/` | GET / POST | **v0.3.0** — Lista / sube documentos (`InstanciaDocumento`, multipart) |
+| `/<slug>/<pk>/documentos/<doc_id>/` | DELETE | **v0.3.0** — Elimina un documento del trámite |
+| `/<slug>/<pk>/requisitos/` | GET | **v0.3.0** — Requisitos documentales del estado actual + cumplimiento |
 
 Más recursos top-level admin:
 
@@ -415,6 +418,7 @@ Importa un JSON de flujo. Atómico, rechaza referencias faltantes, valida versi�
 |---|---|---|
 | `available-transitions`, `transition`, `history` | `IsAuthenticated` | Filtrado por grupo lo maneja `ConfiguracionTransicion.grupos_permitidos` dentro del engine. El engine lanza `PermissionError → 403`. |
 | `preview-transition`, `metadatos` | `IsAuthenticated` | |
+| `documentos`, `requisitos` | `IsAuthenticated` | Sube/lista/elimina documentos; lee requisitos del estado actual. |
 | `sla-status` | `IsAdminUser` | Mutación posible (acción `alertar`). |
 | `/condiciones/*`, `/slas/*`, `/slas/verificar/` | `IsAdminUser` | Todos los recursos admin. |
 | `/flujos/<pk>/export/`, `/flujos/import/` | `IsAdminUser` | |
