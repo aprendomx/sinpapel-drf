@@ -231,3 +231,81 @@ class SLAConfiguracionSerializer(serializers.ModelSerializer):
         from sinpapel.models import SLAConfiguracion as _Model
         model = _Model
         fields = "__all__"
+
+
+# ── v0.3.0: carga + validación de documentos (InstanciaDocumento) ───────────
+
+
+class InstanciaDocumentoSerializer(serializers.Serializer):
+    """Read serializer para InstanciaDocumento (listado + respuesta de carga)."""
+
+    id = serializers.IntegerField(read_only=True)
+    documento = serializers.IntegerField(source="documento_id", allow_null=True)
+    tipo_documento = serializers.CharField(
+        source="documento.tipo_documento.nombre",
+        allow_null=True,
+        required=False,
+    )
+    archivo = serializers.FileField(allow_null=True, required=False)
+    porcentaje = serializers.IntegerField()
+    creado = serializers.DateTimeField(allow_null=True)
+
+
+class InstanciaDocumentoUploadSerializer(serializers.Serializer):
+    """Write serializer para POST /documentos/.
+
+    Acepta `documento` (PK) o `tipo_documento` (PK). Resuelve el Documento y lo
+    deja en validated_data["documento_obj"]. Regla por tipo: exactamente 1
+    Documento del tipo → se usa; 0 o >1 → error (pedir `documento` explícito).
+    """
+
+    archivo = serializers.FileField(required=True)
+    documento = serializers.IntegerField(required=False, allow_null=True)
+    tipo_documento = serializers.IntegerField(required=False, allow_null=True)
+    porcentaje = serializers.IntegerField(
+        required=False, default=100, min_value=0, max_value=100
+    )
+    metadatos = serializers.JSONField(required=False, default=dict)
+
+    def validate(self, attrs):
+        from sinpapel.models import Documento
+
+        doc_pk = attrs.get("documento")
+        tipo_pk = attrs.get("tipo_documento")
+        if not doc_pk and not tipo_pk:
+            raise serializers.ValidationError(
+                "Debe enviar 'documento' o 'tipo_documento'."
+            )
+        if doc_pk:
+            try:
+                documento = Documento.objects.get(pk=doc_pk)
+            except Documento.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"documento": "Documento inexistente."}
+                )
+        else:
+            qs = Documento.objects.filter(tipo_documento_id=tipo_pk)
+            n = qs.count()
+            if n == 0:
+                raise serializers.ValidationError(
+                    {"tipo_documento": "No hay Documento de ese tipo; envíe 'documento'."}
+                )
+            if n > 1:
+                raise serializers.ValidationError(
+                    {"tipo_documento": "Hay varios Documento de ese tipo; envíe 'documento'."}
+                )
+            documento = qs.first()
+        attrs["documento_obj"] = documento
+        return attrs
+
+
+class RequisitoStatusSerializer(serializers.Serializer):
+    """Mapea la forma de WorkflowEngine.evaluar_requisitos_documentales()."""
+
+    nivel = serializers.CharField()
+    tipo_documento = serializers.CharField(allow_null=True, required=False)
+    porcentaje_requerido = serializers.IntegerField(allow_null=True, required=False)
+    porcentaje_actual = serializers.IntegerField(allow_null=True, required=False)
+    satisfecho = serializers.BooleanField()
+    auto_carga = serializers.BooleanField(required=False, default=False)
+    mensaje = serializers.CharField(allow_blank=True, required=False)

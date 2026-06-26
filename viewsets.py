@@ -302,6 +302,81 @@ class WorkflowViewSet(GenericViewSet):
         return Response(instance.meta.to_dict())
 
     @action(
+        detail=True, methods=["get", "post"], url_path="documentos",
+        parser_classes=[JSONParser, MultiPartParser, FormParser],
+    )
+    def documentos(self, request, pk=None):
+        """GET lista / POST sube InstanciaDocumento del trámite (carga typed)."""
+        from django.contrib.contenttypes.models import ContentType
+        from sinpapel.models import InstanciaDocumento
+        from sinpapel_drf.serializers import (
+            InstanciaDocumentoSerializer,
+            InstanciaDocumentoUploadSerializer,
+        )
+
+        instance = self.get_object()
+        ct = ContentType.objects.get_for_model(type(instance))
+
+        if request.method == "GET":
+            qs = (
+                InstanciaDocumento.objects.filter(
+                    target_content_type=ct, target_object_id=instance.pk
+                )
+                .select_related("documento", "documento__tipo_documento")
+                .order_by("-creado")
+            )
+            return Response(InstanciaDocumentoSerializer(qs, many=True).data)
+
+        # POST
+        s = InstanciaDocumentoUploadSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        data = s.validated_data
+        inst = InstanciaDocumento.objects.create(
+            documento=data["documento_obj"],
+            target=instance,
+            archivo=data["archivo"],
+            porcentaje=data.get("porcentaje", 100),
+            metadatos=data.get("metadatos") or {},
+            autor=request.user,
+            modificador=request.user,
+        )
+        return Response(
+            InstanciaDocumentoSerializer(inst).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(
+        detail=True, methods=["delete"],
+        url_path=r"documentos/(?P<doc_id>[0-9]+)",
+    )
+    def documento_detail(self, request, pk=None, doc_id=None):
+        """DELETE un InstanciaDocumento, solo si pertenece al trámite."""
+        from django.contrib.contenttypes.models import ContentType
+        from rest_framework.exceptions import NotFound
+        from sinpapel.models import InstanciaDocumento
+
+        instance = self.get_object()
+        ct = ContentType.objects.get_for_model(type(instance))
+        try:
+            inst = InstanciaDocumento.objects.get(
+                pk=doc_id, target_content_type=ct, target_object_id=instance.pk
+            )
+        except InstanciaDocumento.DoesNotExist:
+            raise NotFound("Documento no encontrado para este trámite.")
+        inst.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"], url_path="requisitos")
+    def requisitos(self, request, pk=None):
+        """GET requisitos documentales del estado actual + cumplimiento."""
+        from sinpapel.services.workflow_engine import WorkflowEngine
+        from sinpapel_drf.serializers import RequisitoStatusSerializer
+
+        instance = self.get_object()
+        data = WorkflowEngine().evaluar_requisitos_documentales(instance)
+        return Response(RequisitoStatusSerializer(data, many=True).data)
+
+    @action(
         detail=True, methods=["post"], url_path="sla-status",
         permission_classes=[IsAdminUser],
     )
