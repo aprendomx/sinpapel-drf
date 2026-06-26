@@ -83,22 +83,45 @@ Respuesta `201` con el `InstanciaDocumentoSerializer` del objeto creado.
   el `Documento` aplicando la regla de resolución; setea la GFK `target`.
 - **`InstanciaDocumentoSerializer`** (read): `id, documento, tipo_documento`
   (nombre), `archivo` (url), `porcentaje`, `creado`.
-- **`RequisitoStatusSerializer`** (read, para `/requisitos/`): `tipo_documento`
-  (nombre), `porcentaje_requerido`, `porcentaje_actual`, `satisfecho` (bool),
-  `auto_carga` (bool).
+- **`RequisitoStatusSerializer`** (read, para `/requisitos/`): mapea la forma que
+  devuelve `evaluar_requisitos_documentales` — `nivel`, `tipo_documento`,
+  `porcentaje_requerido`, `porcentaje_actual`, `satisfecho`, `auto_carga`, `mensaje`.
 
-## `/requisitos/` — cumplimiento del estado actual
+## Mecanismo compartido (sin duplicación) — upstream
 
-Lee `get_requisitos_for(estado_actual.id)` y calcula `porcentaje_actual` por tipo
-con la misma fórmula del engine (`max(InstanciaDocumento.porcentaje)` por tipo).
-Devuelve la lista de requisitos con su estado de cumplimiento. A diferencia de
-`preview-transition`, **no requiere un `target_state`**: responde "qué necesita el
-estado actual".
+Para que la lógica de cumplimiento **no se duplique** entre el engine y el endpoint
+`/requisitos/`, se agrega a `sinpapel` un mecanismo público único que ambos consumen:
 
-**Nota de duplicación:** esto replica la lógica de
-`WorkflowEngine._validar_documentos` (privada). Riesgo de drift. Alternativa
-futura: pedir a upstream un helper público `evaluar_requisitos_documentales(
-instance)` y consumirlo (DRY). Por ahora se computa localmente y se deja anotado.
+**`WorkflowEngine.evaluar_requisitos_documentales(instance, estado=None) -> list[dict]`**
+(estado actual si `estado=None`). Devuelve **todos** los requisitos del estado con
+su estado de cumplimiento, no solo los faltantes. Forma por requisito:
+
+```python
+{
+  "nivel": "expediente" | "requisito_documento",
+  "satisfecho": bool,
+  "mensaje": str,
+  # solo nivel "requisito_documento":
+  "tipo_documento": str,          # nombre
+  "tipo_documento_id": int,
+  "porcentaje_requerido": int,
+  "porcentaje_actual": int,
+  "auto_carga": bool,             # auto_carga=True ⇒ satisfecho=True (no bloquea)
+}
+```
+
+Consumidores:
+
+- **Engine:** `_validar_documentos(instance, estado_actual)` se refactoriza a un
+  wrapper que filtra `not satisfecho` y proyecta a la forma de "faltante" actual
+  (preserva las keys `tipo`/`mensaje`/`tipo_documento`/`porcentaje_*` que ya fluyen
+  por `preview_transition.documentos_faltantes` — backward-compat).
+- **sinpapel-drf `/requisitos/`:** llama `WorkflowEngine().evaluar_requisitos_documentales(instance)`
+  (ya se importa `WorkflowEngine`) y serializa el resultado. A diferencia de
+  `preview-transition`, **no requiere `target_state`**: responde "qué necesita el
+  estado actual".
+
+Resultado: una sola fuente de verdad para el cumplimiento documental.
 
 ## Errores
 
@@ -122,6 +145,8 @@ Harness autocontenido (settings en memoria + modelo `@workflow_enabled`, sin hos
 - `GET /documentos/` lista solo los del trámite.
 - `DELETE` borra el propio; 404 para uno de otro trámite.
 - `GET /requisitos/` refleja `satisfecho` antes/después de cargar.
+- Consistencia: lo que `/requisitos/` marca como no satisfecho coincide con los
+  `documentos_faltantes` de `preview-transition` (misma fuente — el mecanismo upstream).
 - E2E: requisito al 100% ⇒ `transition` pasa de 403 a 201.
 
 ## Prerrequisitos upstream (bloquean la implementación, no el spec/plan)
@@ -129,7 +154,14 @@ Harness autocontenido (settings en memoria + modelo `@workflow_enabled`, sin hos
 1. `sinpapel`: mergear `feat/requisito-documental-enforce` a `main` + taggear `v0.6.0`.
 2. `sinpapel`: agregar `InstanciaDocumento.archivo`
    (`upload_to="instancias_documento/"`, `blank=True, null=True`) + migración reversible.
-3. `sinpapel-drf`: bumpear pin `@v0.5.1` → `@v0.6.0` (o el tag que incluya `archivo`).
+3. `sinpapel`: agregar el método público
+   `WorkflowEngine.evaluar_requisitos_documentales(instance, estado=None)` y
+   refactorizar `_validar_documentos` para consumirlo (preservando la forma de
+   `documentos_faltantes`). Tests de no-regresión en el engine.
+4. `sinpapel-drf`: bumpear pin `@v0.5.1` → el tag que incluya 1-3.
+
+Los puntos 2 y 3 pueden ir en el mismo tag (`v0.6.0` aún sin publicar) para no
+multiplicar releases.
 
 ## Fuera de alcance
 
