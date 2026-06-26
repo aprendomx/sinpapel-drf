@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Endpoints de carga y validación de documentos en `WorkflowViewSet`:
+  `POST/GET /<slug>/<pk>/documentos/` (crea/lista `InstanciaDocumento` typed,
+  acepta `documento` o `tipo_documento`), `DELETE /<slug>/<pk>/documentos/<doc_id>/`
+  y `GET /<slug>/<pk>/requisitos/` (cumplimiento documental del estado actual).
+  `/requisitos/` consume `WorkflowEngine.evaluar_requisitos_documentales` —
+  mecanismo público compartido con el engine, sin duplicar lógica.
+
+### Changed
+
+- Pin de `sinpapel` a `@v0.6.0` (requiere `InstanciaDocumento.archivo` y
+  `WorkflowEngine.evaluar_requisitos_documentales`).
+
 ## [0.2.2] - 2026-06-18
 
 Corrige un crash de arranque en proyectos consumidores y cambia el protocolo de
