@@ -131,6 +131,40 @@ def _build_firma_payload_for_engine(
         return {"registro_firma_id": rf.id}
 
 
+def _attach_documentos_disponibles(requisitos: list[dict]) -> list[dict]:
+    """Adjunta a cada `requisito_documento` las opciones de `Documento` de su
+    tipo (``[{id, nombre}]``), para poblar un ``<select>`` dependiente en el
+    cliente. Un tipo (ej. "Identificación") puede tener varios Documento
+    (ej. "Pasaporte", "INE") y el usuario elige cuál sube.
+
+    No-op sobre los items que no son `requisito_documento`. Una sola query.
+    """
+    from sinpapel.models import Documento
+
+    tipo_ids = [
+        r["tipo_documento_id"]
+        for r in requisitos
+        if r.get("nivel") == "requisito_documento" and r.get("tipo_documento_id")
+    ]
+    if not tipo_ids:
+        return requisitos
+
+    docs_por_tipo: dict[int, list[dict]] = {}
+    for d in Documento.objects.filter(tipo_documento_id__in=tipo_ids).values(
+        "id", "nombre", "tipo_documento_id"
+    ):
+        docs_por_tipo.setdefault(d["tipo_documento_id"], []).append(
+            {"id": d["id"], "nombre": d["nombre"]}
+        )
+
+    for r in requisitos:
+        if r.get("nivel") == "requisito_documento":
+            r["documentos_disponibles"] = docs_por_tipo.get(
+                r.get("tipo_documento_id"), []
+            )
+    return requisitos
+
+
 class WorkflowViewSet(GenericViewSet):
     """Auto-instantiated ViewSet via SinpapelRouter.
 
@@ -186,7 +220,6 @@ class WorkflowViewSet(GenericViewSet):
                 target_state_name=validated["target_state"],
                 user=request.user,
                 comentarios=validated.get("comentarios", ""),
-                monto_aprobado=validated.get("monto_aprobado"),
                 condiciones=validated.get("condiciones"),
                 firma_payload=firma_payload,
             )
@@ -374,6 +407,7 @@ class WorkflowViewSet(GenericViewSet):
 
         instance = self.get_object()
         data = WorkflowEngine().evaluar_requisitos_documentales(instance)
+        data = _attach_documentos_disponibles(data)
         return Response(RequisitoStatusSerializer(data, many=True).data)
 
     @action(

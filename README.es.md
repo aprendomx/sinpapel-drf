@@ -193,7 +193,6 @@ Ejecuta una transición. Body validado por `TransitionRequestSerializer`:
 {
   "target_state": "Aprobado",
   "comentarios": "Documentación completa",
-  "monto_aprobado": "150000.00",
   "condiciones": null,
   "signature": { "backend": "fiel", "mode": "client-side", "firma_b64": "...", "certificado_cer_b64": "..." }
 }

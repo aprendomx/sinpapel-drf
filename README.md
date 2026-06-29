@@ -193,7 +193,6 @@ Executes a transition. Request body validated by `TransitionRequestSerializer`:
 {
   "target_state": "Aprobado",
   "comentarios": "Documentation complete",
-  "monto_aprobado": "150000.00",
   "condiciones": null,
   "signature": { "backend": "fiel", "mode": "client-side", "firma_b64": "...", "certificado_cer_b64": "..." }
 }

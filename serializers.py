@@ -127,9 +127,6 @@ class TransitionRequestSerializer(serializers.Serializer):
     comentarios = serializers.CharField(
         required=False, allow_blank=True, default=""
     )
-    monto_aprobado = serializers.DecimalField(
-        max_digits=12, decimal_places=2, required=False, allow_null=True
-    )
     condiciones = serializers.CharField(
         required=False, allow_blank=True, allow_null=True, default=None
     )
@@ -304,8 +301,15 @@ class RequisitoStatusSerializer(serializers.Serializer):
 
     nivel = serializers.CharField()
     tipo_documento = serializers.CharField(allow_null=True, required=False)
+    tipo_documento_id = serializers.IntegerField(allow_null=True, required=False)
     porcentaje_requerido = serializers.IntegerField(allow_null=True, required=False)
     porcentaje_actual = serializers.IntegerField(allow_null=True, required=False)
     satisfecho = serializers.BooleanField()
     auto_carga = serializers.BooleanField(required=False, default=False)
     mensaje = serializers.CharField(allow_blank=True, required=False)
+    # v0.4.0: opciones de Documento (id + nombre) del tipo del requisito, para
+    # poblar un <select> dependiente en el cliente (ej. tipo "Identificación" →
+    # ["Pasaporte", "INE"]). El engine no lo provee; lo adjunta el viewset.
+    documentos_disponibles = serializers.ListField(
+        child=serializers.DictField(), required=False, default=list,
+    )

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-29
+
+### Added
+
+- `GET /<slug>/<pk>/requisitos/`: cada requisito de nivel
+  `requisito_documento` ahora incluye `tipo_documento_id` (PK del tipo) y
+  `documentos_disponibles` (`[{id, nombre}]` — los `Documento` de ese tipo).
+  Permite al cliente poblar un `<select>` de tipo y un `<select>` dependiente
+  de documento (ej. tipo "Identificación" → "Pasaporte" / "INE") sin endpoints
+  ni round-trips extra. El engine ya exponía `tipo_documento_id`; el viewset
+  adjunta `documentos_disponibles` (helper `_attach_documentos_disponibles`,
+  una sola query). Additivo: no rompe consumidores existentes.
+
+### Removed
+
+- **BREAKING:** Eliminado `monto_aprobado` del `TransitionRequestSerializer` y
+  del paso al engine en `transition`, alineado con su remoción de `sinpapel`
+  (campo residual). Requiere `sinpapel >= 0.7.0`.
+
 ## [0.3.0] - 2026-06-26
 
 ### Added

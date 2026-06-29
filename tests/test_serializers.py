@@ -6,8 +6,6 @@ Sin DB ni APIClient — pure serializer behavior.
 """
 from __future__ import annotations
 
-from decimal import Decimal
-
 import pytest
 
 from sinpapel_drf.serializers import (
@@ -97,21 +95,11 @@ def test_transition_request_full_payload_valid():
     s = TransitionRequestSerializer(data={
         "target_state": "APROBADO",
         "comentarios": "OK",
-        "monto_aprobado": "1500.00",
         "condiciones": "Pago a 12 meses",
     })
     assert s.is_valid(), s.errors
-    assert s.validated_data["monto_aprobado"] == Decimal("1500.00")
     assert s.validated_data["condiciones"] == "Pago a 12 meses"
     assert s.validated_data["comentarios"] == "OK"
-
-
-def test_transition_request_monto_aprobado_optional_null():
-    s = TransitionRequestSerializer(data={
-        "target_state": "RECHAZADO", "monto_aprobado": None,
-    })
-    assert s.is_valid(), s.errors
-    assert s.validated_data.get("monto_aprobado") is None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
