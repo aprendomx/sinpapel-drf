@@ -4,6 +4,6 @@ Auto-routing from @workflow_enabled decorator + ViewSets + polymorphic
 serializers for signature backends + permission classes integrated with
 ConfiguracionTransicion.grupos_permitidos.
 """
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = ["__version__"]

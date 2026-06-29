@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 from rest_framework import status
@@ -165,6 +166,53 @@ def _attach_documentos_disponibles(requisitos: list[dict]) -> list[dict]:
     return requisitos
 
 
+def _seguimiento_to_history_entry(seg) -> SimpleNamespace:
+    """Mapea un `SeguimientoWorkflow` a la MISMA forma que un HistoricalRecord
+    de django-simple-history, para reusar `HistoryEntrySerializer` sin cambios.
+
+    - `history_type`: '+' si es la entrada de creación (`estado_anterior` None),
+      '~' si es una transición entre estados.
+    - `history_change_reason`: "ANTERIOR → NUEVO" (o solo "NUEVO" en la
+      creación), con los `comentarios` de la transición adjuntos tras un guión.
+    - `history_user`: el `usuario_accion` (objeto con `.username`, como espera
+      el serializer vía `source="history_user.username"`).
+    """
+    anterior = seg.estado_anterior.nombre if seg.estado_anterior_id else None
+    nuevo = seg.estado_nuevo.nombre
+    reason = f"{anterior} → {nuevo}" if anterior else nuevo
+    if seg.comentarios:
+        reason = f"{reason} — {seg.comentarios}"
+    return SimpleNamespace(
+        history_id=seg.pk,
+        history_type="~" if anterior else "+",
+        history_date=seg.fecha_accion,
+        history_user=seg.usuario_accion,
+        history_change_reason=reason,
+    )
+
+
+def _seguimiento_history(instance) -> list:
+    """Audit trail de transiciones (`SeguimientoWorkflow`) de `instance`, más
+    reciente primero, mapeado a la forma de `HistoryEntrySerializer`.
+
+    Fuente de *fallback* de `GET /history/` para modelos workflow-enabled que
+    heredan solo de `Trazable` y NO declaran `HistoricalRecords` (no tienen
+    `instance.history`). Scoping por la GFK `target` (content_type + object_id).
+    """
+    from django.contrib.contenttypes.models import ContentType
+    from sinpapel.models import SeguimientoWorkflow
+
+    ct = ContentType.objects.get_for_model(type(instance))
+    seguimientos = (
+        SeguimientoWorkflow.objects.filter(
+            target_content_type=ct, target_object_id=instance.pk
+        )
+        .select_related("estado_anterior", "estado_nuevo", "usuario_accion")
+        .order_by("-fecha_accion")
+    )
+    return [_seguimiento_to_history_entry(s) for s in seguimientos]
+
+
 class WorkflowViewSet(GenericViewSet):
     """Auto-instantiated ViewSet via SinpapelRouter.
 
@@ -235,12 +283,24 @@ class WorkflowViewSet(GenericViewSet):
 
     @action(detail=True, methods=["get"])
     def history(self, request, pk=None):
-        """GET .../history/ → audit trail paginated (D4: 10/100)."""
+        """GET .../history/ → audit trail paginated (D4: 10/100).
+
+        Fuente:
+        - Si el modelo declara `HistoricalRecords` (django-simple-history),
+          sirve `instance.history` (comportamiento original, sin cambios).
+        - Si NO (modelo workflow-enabled que solo hereda de `Trazable`), hace
+          fallback al audit trail de transiciones desde `SeguimientoWorkflow`,
+          mapeado a la misma forma de respuesta. Antes el endpoint atrapaba el
+          `AttributeError` de `instance.history` y devolvía `[]` en silencio,
+          ocultando transiciones reales — el consumidor mostraba "sin
+          movimientos" pese a que el estado sí había cambiado.
+        """
         instance = self.get_object()
-        try:
-            queryset = list(instance.history.all())
-        except AttributeError:
-            queryset = []
+        historical = getattr(instance, "history", None)
+        if historical is not None and hasattr(historical, "all"):
+            queryset = list(historical.all())
+        else:
+            queryset = _seguimiento_history(instance)
 
         page = self.paginate_queryset(queryset)
         if page is not None:

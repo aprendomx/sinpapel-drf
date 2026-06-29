@@ -1,6 +1,6 @@
 # sinpapel-drf
 
-> **v0.4.0** — Capa HTTP DRF para [sinpapel](https://github.com/aprendomx/sinpapel).
+> **v0.4.1** — Capa HTTP DRF para [sinpapel](https://github.com/aprendomx/sinpapel).
 >
 > Endpoints REST auto-generados (workflow + firma + metadatos + predicados + SLA + preview + portabilidad de flujos) sobre modelos Django decorados con `@workflow_enabled`. Reutilizable en SEP, FONDESO y cualquier consumidor de sinpapel que necesite **una API HTTP funcional sin escribir ViewSets, serializers, URLs ni permission classes a mano**.
 >
@@ -36,7 +36,7 @@ Para cada modelo Django decorado con `@workflow_enabled(expose_endpoints=True)`,
 |---|---|---|
 | `/<slug>/<pk>/available-transitions/` | GET | Lista los Estado destino válidos desde el estado actual |
 | `/<slug>/<pk>/transition/` | POST | Ejecuta una transición (con firma opcional) |
-| `/<slug>/<pk>/history/` | GET | Audit trail paginado (`django-simple-history`) |
+| `/<slug>/<pk>/history/` | GET | Audit trail paginado. `HistoricalRecords` si el modelo los declara; si no, fallback a las transiciones de `SeguimientoWorkflow` |
 | `/<slug>/<pk>/preview-transition/` | POST | **v0.2.0** — Reporte de impacto sin mutación |
 | `/<slug>/<pk>/metadatos/` | GET / PATCH | **v0.2.0** — Schema de metadatos estructurados + update parcial |
 | `/<slug>/<pk>/sla-status/` | POST | **v0.2.0** — Evalúa SLA por instancia |
@@ -66,14 +66,14 @@ Más recursos top-level admin:
 ## 2. Instalación
 
 ```bash
-pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.0"
+pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.1"
 ```
 
 O vía `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.0",
+    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.1",
 ]
 ```
 
@@ -212,7 +212,15 @@ Response 201:
 
 ### `GET .../history/`
 
-Audit trail paginado (`page_size=10`, máx `100`):
+Audit trail paginado (`page_size=10`, máx `100`).
+
+**Fuente:** si el modelo declara `HistoricalRecords` (django-simple-history),
+sirve `instance.history`. Si solo hereda de `Trazable` (sin `HistoricalRecords`),
+hace fallback al audit trail de transiciones desde `SeguimientoWorkflow` (más
+reciente primero), mapeado a la **misma** forma de respuesta — `history_type`
+es `'+'` en la entrada de creación / `'~'` en las transiciones, y
+`history_change_reason` es `"ANTERIOR → NUEVO"` más los comentarios de la
+transición.
 
 ```json
 {

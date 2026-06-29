@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-29
+
+### Fixed
+
+- `GET /<slug>/<pk>/history/`: los modelos workflow-enabled que solo heredan de
+  `Trazable` (sin declarar `HistoricalRecords`) devolvían
+  `{"count": 0, "results": []}` **en silencio** —el endpoint atrapaba el
+  `AttributeError` de `instance.history` y servía una lista vacía— aunque el
+  trámite tuviera transiciones registradas en `SeguimientoWorkflow`. El
+  consumidor (`HistoryTimeline` de sinpapel-vue) mostraba "sin movimientos"
+  pese a que el estado había cambiado. Ahora, cuando el modelo no tiene
+  `HistoricalRecords`, `/history/` hace **fallback** al audit trail de
+  transiciones (`SeguimientoWorkflow`, scoping por la GFK `target`, más reciente
+  primero), mapeado a la **misma** forma de respuesta
+  (`HistoryEntrySerializer`): `history_type` `'+'`/`'~'`, `history_date`,
+  `history_user`, `history_change_reason` (`"ANTERIOR → NUEVO"` + comentarios).
+  Se eliminó el `except AttributeError` silencioso. Los modelos que SÍ declaran
+  `HistoricalRecords` no cambian (siguen sirviendo `instance.history`).
+  Paginación (10/100) y permisos sin cambios.
+
 ## [0.4.0] - 2026-06-29
 
 ### Added

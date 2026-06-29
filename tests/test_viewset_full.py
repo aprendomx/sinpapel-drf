@@ -346,11 +346,120 @@ def test_history_endpoint_max_page_size_clamped(
     assert len(body["results"]) <= 100
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# history fallback → SeguimientoWorkflow (modelos solo-Trazable sin
+# HistoricalRecords). El consumidor (HistoryTimeline) mostraba "sin movimientos"
+# porque instance.history lanzaba AttributeError y el endpoint devolvía []
+# silenciosamente, ocultando transiciones reales registradas en
+# SeguimientoWorkflow.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _crear_seguimientos(instance, user, pares):
+    """Crea SeguimientoWorkflow reales (GFK a `instance`) para cada par
+    (estado_anterior, estado_nuevo), con fecha_accion creciente para garantizar
+    orden determinista. Devuelve la lista de objetos creados, en orden."""
+    from datetime import datetime, timedelta, timezone
+
+    from django.contrib.contenttypes.models import ContentType
+    from sinpapel.models import SeguimientoWorkflow
+
+    ct = ContentType.objects.get_for_model(type(instance))
+    base = datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc)
+    creados = []
+    for i, (anterior, nuevo) in enumerate(pares):
+        s = SeguimientoWorkflow.objects.create(
+            target_content_type=ct,
+            target_object_id=instance.pk,
+            estado_anterior=anterior,
+            estado_nuevo=nuevo,
+            usuario_accion=user,
+            comentarios="",
+        )
+        # fecha_accion es auto_now_add → se fija al crear; lo sobreescribimos
+        # vía .update() (bypass de auto_now_add) para tener timestamps distintos.
+        SeguimientoWorkflow.objects.filter(pk=s.pk).update(
+            fecha_accion=base + timedelta(minutes=i)
+        )
+        creados.append(s)
+    return creados
+
+
 @pytest.mark.django_db
-def test_history_endpoint_empty_when_no_history_attr(
+def test_history_fallback_to_seguimiento_for_trazable_only_model(
+    transition_setup, solicitud_with_flujo, api_client_authenticated, admin_user,
+):
+    """Modelo solo-Trazable con N transiciones en SeguimientoWorkflow → /history/
+    devuelve N entradas, más reciente primero, history_type '+'/'~' y
+    change_reason 'A → B'."""
+    from sinpapel.models import Estado
+
+    origen = transition_setup["estado_origen"]    # S13_5_ORIGEN
+    destino = transition_setup["estado_destino"]  # S13_5_DESTINO
+    tercero = Estado.objects.create(nombre="S13_5_TERCERO")
+
+    # creación (anterior None) → '+', luego dos modificaciones → '~'
+    _crear_seguimientos(
+        solicitud_with_flujo, admin_user,
+        [(None, origen), (origen, destino), (destino, tercero)],
+    )
+
+    resp = api_client_authenticated.get(
+        f"/sinpapel/api/solicitudes-full/{solicitud_with_flujo.pk}/history/"
+    )
+    assert resp.status_code == 200, f"got {resp.status_code}: {resp.content!r}"
+    body = resp.json()
+    assert body["count"] == 3
+    results = body["results"]
+    assert len(results) == 3
+
+    # más reciente primero: la última transición (destino → tercero) arriba
+    assert results[0]["history_type"] == "~"
+    assert results[0]["history_change_reason"] == "S13_5_DESTINO → S13_5_TERCERO"
+    assert results[0]["history_user"] == admin_user.username
+    # intermedia
+    assert results[1]["history_type"] == "~"
+    assert results[1]["history_change_reason"] == "S13_5_ORIGEN → S13_5_DESTINO"
+    # la creación (estado_anterior None) → '+', más antigua → al final
+    assert results[-1]["history_type"] == "+"
+    assert results[-1]["history_change_reason"] == "S13_5_ORIGEN"
+
+
+@pytest.mark.django_db
+def test_history_fallback_appends_comentarios_to_change_reason(
+    transition_setup, solicitud_with_flujo, api_client_authenticated, admin_user,
+):
+    """change_reason adjunta los comentarios de la transición tras la flecha."""
+    from django.contrib.contenttypes.models import ContentType
+    from sinpapel.models import SeguimientoWorkflow
+
+    ct = ContentType.objects.get_for_model(type(solicitud_with_flujo))
+    SeguimientoWorkflow.objects.create(
+        target_content_type=ct,
+        target_object_id=solicitud_with_flujo.pk,
+        estado_anterior=transition_setup["estado_origen"],
+        estado_nuevo=transition_setup["estado_destino"],
+        usuario_accion=admin_user,
+        comentarios="aprobado por comité",
+    )
+
+    resp = api_client_authenticated.get(
+        f"/sinpapel/api/solicitudes-full/{solicitud_with_flujo.pk}/history/"
+    )
+    body = resp.json()
+    assert body["count"] == 1
+    assert (
+        body["results"][0]["history_change_reason"]
+        == "S13_5_ORIGEN → S13_5_DESTINO — aprobado por comité"
+    )
+
+
+@pytest.mark.django_db
+def test_history_trazable_only_no_transitions_returns_count_zero(
     transition_setup, solicitud_with_flujo, api_client_authenticated,
 ):
-    """Solicitud no tiene HistoricalRecords → AttributeError captured → empty list."""
+    """Modelo solo-Trazable SIN transiciones → count 0, sin error (el fallback
+    consulta SeguimientoWorkflow y no encuentra nada)."""
     resp = api_client_authenticated.get(
         f"/sinpapel/api/solicitudes-full/{solicitud_with_flujo.pk}/history/"
     )
@@ -361,5 +470,42 @@ def test_history_endpoint_empty_when_no_history_attr(
         assert body.get("count", 0) == 0
         assert body.get("results", []) == []
     else:
-        # fallback: vacio sin paginar
         assert body == []
+
+
+@pytest.mark.django_db
+def test_history_prefers_historicalrecords_over_seguimiento(
+    transition_setup, solicitud_with_flujo, api_client_authenticated,
+    admin_user, monkeypatch,
+):
+    """Si el modelo SÍ declara HistoricalRecords, /history/ los sirve y NO hace
+    fallback a SeguimientoWorkflow (aunque existan transiciones)."""
+    from django.contrib.contenttypes.models import ContentType
+    from creditos.models import Solicitud
+    from sinpapel.models import SeguimientoWorkflow
+
+    ct = ContentType.objects.get_for_model(Solicitud)
+    SeguimientoWorkflow.objects.create(
+        target_content_type=ct,
+        target_object_id=solicitud_with_flujo.pk,
+        estado_anterior=None,
+        estado_nuevo=transition_setup["estado_origen"],
+        usuario_accion=admin_user,
+        comentarios="",
+    )
+    fake_entries = _make_fake_history_entries(2)
+    monkeypatch.setattr(
+        Solicitud, "history", property(lambda self: _FakeHistory(fake_entries)),
+        raising=False,
+    )
+
+    resp = api_client_authenticated.get(
+        f"/sinpapel/api/solicitudes-full/{solicitud_with_flujo.pk}/history/"
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # 2 fake HistoricalRecords, NO la transición de SeguimientoWorkflow
+    assert body["count"] == 2
+    assert {r["history_change_reason"] for r in body["results"]} == {
+        "reason 0", "reason 1",
+    }
