@@ -1,6 +1,6 @@
 # sinpapel-drf
 
-> **v0.2.1** — DRF HTTP layer for [sinpapel](https://github.com/aprendomx/sinpapel).
+> **v0.4.0** — DRF HTTP layer for [sinpapel](https://github.com/aprendomx/sinpapel).
 >
 > Auto-generated REST endpoints (workflow + signature + metadata + predicates + SLA + preview + flow portability) on top of `@workflow_enabled` Django models. Reusable across SEP, FONDESO, and any sinpapel consumer that needs **a functional HTTP API without hand-writing ViewSets, serializers, URLs, or permission classes**.
 >
@@ -42,7 +42,7 @@ For every Django model decorated with `@workflow_enabled(expose_endpoints=True)`
 | `/<slug>/<pk>/sla-status/` | POST | **v0.2.0** — Evaluate SLA per instance |
 | `/<slug>/<pk>/documentos/` | GET / POST | **v0.3.0** — List / upload documents (`InstanciaDocumento`, multipart) |
 | `/<slug>/<pk>/documentos/<doc_id>/` | DELETE | **v0.3.0** — Remove a document from the instance |
-| `/<slug>/<pk>/requisitos/` | GET | **v0.3.0** — Document requirements of the current state + fulfillment |
+| `/<slug>/<pk>/requisitos/` | GET | **v0.3.0** — Document requirements of the current state + fulfillment. **v0.4.0**: each `requisito_documento` also carries `tipo_documento_id` + `documentos_disponibles` (`[{id, nombre}]`) for dependent client selects |
 
 Plus admin-scoped top-level resources:
 
@@ -66,18 +66,18 @@ Plus admin-scoped top-level resources:
 ## 2. Installation
 
 ```bash
-pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.2.1"
+pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.0"
 ```
 
 Or via `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.2.1",
+    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.0",
 ]
 ```
 
-Transitively pulls `sinpapel @v0.5.1`. Requires Python 3.10+, Django 5.0+, DRF 3.14+.
+Transitively pulls `sinpapel @v0.7.0`. Requires Python 3.10+, Django 5.0+, DRF 3.14+.
 
 ### Add to `INSTALLED_APPS`
 

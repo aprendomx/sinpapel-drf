@@ -1,6 +1,6 @@
 # sinpapel-drf
 
-> **v0.2.1** — Capa HTTP DRF para [sinpapel](https://github.com/aprendomx/sinpapel).
+> **v0.4.0** — Capa HTTP DRF para [sinpapel](https://github.com/aprendomx/sinpapel).
 >
 > Endpoints REST auto-generados (workflow + firma + metadatos + predicados + SLA + preview + portabilidad de flujos) sobre modelos Django decorados con `@workflow_enabled`. Reutilizable en SEP, FONDESO y cualquier consumidor de sinpapel que necesite **una API HTTP funcional sin escribir ViewSets, serializers, URLs ni permission classes a mano**.
 >
@@ -42,7 +42,7 @@ Para cada modelo Django decorado con `@workflow_enabled(expose_endpoints=True)`,
 | `/<slug>/<pk>/sla-status/` | POST | **v0.2.0** — Evalúa SLA por instancia |
 | `/<slug>/<pk>/documentos/` | GET / POST | **v0.3.0** — Lista / sube documentos (`InstanciaDocumento`, multipart) |
 | `/<slug>/<pk>/documentos/<doc_id>/` | DELETE | **v0.3.0** — Elimina un documento del trámite |
-| `/<slug>/<pk>/requisitos/` | GET | **v0.3.0** — Requisitos documentales del estado actual + cumplimiento |
+| `/<slug>/<pk>/requisitos/` | GET | **v0.3.0** — Requisitos documentales del estado actual + cumplimiento. **v0.4.0**: cada `requisito_documento` trae además `tipo_documento_id` + `documentos_disponibles` (`[{id, nombre}]`) para selects dependientes en el cliente |
 
 Más recursos top-level admin:
 
@@ -66,18 +66,18 @@ Más recursos top-level admin:
 ## 2. Instalación
 
 ```bash
-pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.2.1"
+pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.0"
 ```
 
 O vía `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.2.1",
+    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.0",
 ]
 ```
 
-Arrastra transitivamente `sinpapel @v0.5.1`. Requiere Python 3.10+, Django 5.0+, DRF 3.14+.
+Arrastra transitivamente `sinpapel @v0.7.0`. Requiere Python 3.10+, Django 5.0+, DRF 3.14+.
 
 ### Agregar a `INSTALLED_APPS`
 
