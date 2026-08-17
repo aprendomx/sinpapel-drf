@@ -66,18 +66,18 @@ Plus admin-scoped top-level resources:
 ## 2. Installation
 
 ```bash
-pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.1"
+pip install sinpapel-drf
 ```
 
 Or via `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.4.1",
+    "sinpapel-drf>=0.4.1",
 ]
 ```
 
-Transitively pulls `sinpapel @v0.7.0`. Requires Python 3.10+, Django 5.0+, DRF 3.14+.
+Transitively pulls `sinpapel>=0.7.0`. Requires Python 3.10+, Django 5.0+, DRF 3.14+.
 
 ### Add to `INSTALLED_APPS`
 

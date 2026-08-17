@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: sinpapel-drf
-Version: 0.2.2
+Version: 0.4.1
 Summary: DRF HTTP layer for sinpapel — auto-routing, ViewSets, signature serializers (extraído desde creditos/E13)
 Author-email: Julio Adrián <jadrian.s@gmail.com>
 License-Expression: GPL-3.0-or-later
@@ -23,7 +23,7 @@ Classifier: Topic :: Software Development :: Libraries :: Python Modules
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: sinpapel @ git+https://github.com/aprendomx/sinpapel.git@v0.5.1
+Requires-Dist: sinpapel>=0.7.0
 Requires-Dist: djangorestframework>=3.14
 Provides-Extra: dev
 Requires-Dist: pytest>=9.0; extra == "dev"
@@ -34,7 +34,7 @@ Dynamic: license-file
 
 # sinpapel-drf
 
-> **v0.2.1** — DRF HTTP layer for [sinpapel](https://github.com/aprendomx/sinpapel).
+> **v0.4.1** — DRF HTTP layer for [sinpapel](https://github.com/aprendomx/sinpapel).
 >
 > Auto-generated REST endpoints (workflow + signature + metadata + predicates + SLA + preview + flow portability) on top of `@workflow_enabled` Django models. Reusable across SEP, FONDESO, and any sinpapel consumer that needs **a functional HTTP API without hand-writing ViewSets, serializers, URLs, or permission classes**.
 >
@@ -70,10 +70,13 @@ For every Django model decorated with `@workflow_enabled(expose_endpoints=True)`
 |---|---|---|
 | `/<slug>/<pk>/available-transitions/` | GET | List valid target states from current state |
 | `/<slug>/<pk>/transition/` | POST | Execute a transition (with optional signature) |
-| `/<slug>/<pk>/history/` | GET | Paginated audit trail (`django-simple-history`) |
+| `/<slug>/<pk>/history/` | GET | Paginated audit trail. `HistoricalRecords` if declared; otherwise falls back to `SeguimientoWorkflow` transitions |
 | `/<slug>/<pk>/preview-transition/` | POST | **v0.2.0** — Impact report without mutation |
 | `/<slug>/<pk>/metadatos/` | GET / PATCH | **v0.2.0** — Structured metadata schema + partial update |
 | `/<slug>/<pk>/sla-status/` | POST | **v0.2.0** — Evaluate SLA per instance |
+| `/<slug>/<pk>/documentos/` | GET / POST | **v0.3.0** — List / upload documents (`InstanciaDocumento`, multipart) |
+| `/<slug>/<pk>/documentos/<doc_id>/` | DELETE | **v0.3.0** — Remove a document from the instance |
+| `/<slug>/<pk>/requisitos/` | GET | **v0.3.0** — Document requirements of the current state + fulfillment. **v0.4.0**: each `requisito_documento` also carries `tipo_documento_id` + `documentos_disponibles` (`[{id, nombre}]`) for dependent client selects |
 
 Plus admin-scoped top-level resources:
 
@@ -97,18 +100,18 @@ Plus admin-scoped top-level resources:
 ## 2. Installation
 
 ```bash
-pip install "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.2.1"
+pip install sinpapel-drf
 ```
 
 Or via `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "sinpapel-drf @ git+ssh://git@github.com/aprendomx/sinpapel-drf.git@v0.2.1",
+    "sinpapel-drf>=0.4.1",
 ]
 ```
 
-Transitively pulls `sinpapel @v0.5.1`. Requires Python 3.10+, Django 5.0+, DRF 3.14+.
+Transitively pulls `sinpapel>=0.7.0`. Requires Python 3.10+, Django 5.0+, DRF 3.14+.
 
 ### Add to `INSTALLED_APPS`
 
@@ -224,7 +227,6 @@ Executes a transition. Request body validated by `TransitionRequestSerializer`:
 {
   "target_state": "Aprobado",
   "comentarios": "Documentation complete",
-  "monto_aprobado": "150000.00",
   "condiciones": null,
   "signature": { "backend": "fiel", "mode": "client-side", "firma_b64": "...", "certificado_cer_b64": "..." }
 }
@@ -244,7 +246,14 @@ Response 201:
 
 ### `GET .../history/`
 
-Paginated audit trail (`page_size=10`, max `100`):
+Paginated audit trail (`page_size=10`, max `100`).
+
+**Source:** if the model declares `HistoricalRecords` (django-simple-history),
+it serves `instance.history`. If it only inherits from `Trazable` (no
+`HistoricalRecords`), it falls back to the transition audit trail from
+`SeguimientoWorkflow` (most recent first), mapped to the **same** response
+shape — `history_type` is `'+'` for the creation entry / `'~'` for transitions,
+and `history_change_reason` is `"PREVIOUS → NEW"` plus the transition comments.
 
 ```json
 {
@@ -449,6 +458,7 @@ Imports a flow JSON. Atomic, rejects missing references, validates the schema ve
 |---|---|---|
 | `available-transitions`, `transition`, `history` | `IsAuthenticated` | Group-level filtering handled by `ConfiguracionTransicion.grupos_permitidos` inside the engine. Engine raises `PermissionError → 403`. |
 | `preview-transition`, `metadatos` | `IsAuthenticated` | |
+| `documentos`, `requisitos` | `IsAuthenticated` | Upload/list/delete documents; read current-state requirements. |
 | `sla-status` | `IsAdminUser` | Mutation possible (`alertar` action). |
 | `/condiciones/*`, `/slas/*`, `/slas/verificar/` | `IsAdminUser` | All admin resources. |
 | `/flujos/<pk>/export/`, `/flujos/import/` | `IsAdminUser` | |

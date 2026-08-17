@@ -1,4 +1,4 @@
-sinpapel @ git+https://github.com/aprendomx/sinpapel.git@v0.5.1
+sinpapel>=0.7.0
 djangorestframework>=3.14
 
 [dev]
