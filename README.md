@@ -4,7 +4,7 @@
 >
 > Auto-generated REST endpoints (workflow + signature + metadata + predicates + SLA + preview + flow portability) on top of `@workflow_enabled` Django models. Reusable across SEP, FONDESO, and any sinpapel consumer that needs **a functional HTTP API without hand-writing ViewSets, serializers, URLs, or permission classes**.
 >
-> [🇪🇸 Leer en Español](README.es.md)
+> [🇪🇸 Leer en Español](https://github.com/aprendomx/sinpapel-drf/blob/main/README.es.md)
 
 ---
 
@@ -485,7 +485,7 @@ The package ships 90+ unit + E2E tests covering routers, viewsets, serializers, 
 
 ## 13. License & Contributing
 
-GPL-3.0-or-later — see [LICENSE](LICENSE).
+GPL-3.0-or-later — see [LICENSE](https://github.com/aprendomx/sinpapel-drf/blob/main/LICENSE).
 
 Issues + PRs at https://github.com/aprendomx/sinpapel-drf/issues. Tag with `area/sinpapel-drf`.
 
