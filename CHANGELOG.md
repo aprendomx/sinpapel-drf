@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-08-18
+
+### Changed
+
+- Requiere `sinpapel~=0.8.0` (pin de minor conforme al contrato pre-1.0 del
+  core). Cambios heredados que afectan a este paquete:
+  - `preview-transition` incluye la nueva key `firma_requerida` (aditivo).
+  - `POST /<slug>/<pk>/transition/` rechaza con `PermissionError` las
+    transiciones con `requiere_firma=True` sin `firma_payload`, y valida en
+    modo B que el `registro_firma_id` pertenezca al usuario, esté en estado
+    válido y no esté vinculado a otra transición.
+  - Firmas FIEL sin bundle de ACs (`SINPAPEL_FIEL_TRUSTED_CA_BUNDLE`) se
+    persisten como `VALIDA_SIN_CADENA` en lugar de `VALIDA`.
+- Tests: dummies del router con el contrato Trazable (`actualizado`),
+  payload de versión no soportada actualizado ("9.9"), fixture de
+  condiciones sin colisión de unique_together, assert de versión al día.
+
 ## [0.4.2] - 2026-08-18
 
 ### Changed

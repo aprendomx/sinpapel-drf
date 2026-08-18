@@ -262,8 +262,8 @@ def test_flujo_import_duplicate_flujo_returns_400(catalog_setup, client_admin):
 
 @pytest.mark.django_db
 def test_flujo_import_unsupported_schema_version_returns_400(client_admin, db):
-    """schema_version != 0.1 → 400."""
-    payload = {"schema_version": "0.2", "flujo": {}}
+    """schema_version no soportada → 400."""
+    payload = {"schema_version": "9.9", "flujo": {}}
     resp = client_admin.post(
         "/sinpapel/api/flujos/import/", data=payload, format="json",
     )

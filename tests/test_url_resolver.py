@@ -30,7 +30,7 @@ class _MockMeta:
 
 
 def _make_mock_model(name: str):
-    return type(name, (), {"_meta": _MockMeta(["estado"])})
+    return type(name, (), {"_meta": _MockMeta(["estado", "actualizado"])})
 
 
 def test_router_urls_include_3_actions(cleanup_registry):

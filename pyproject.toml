@@ -1,6 +1,6 @@
 [project]
 name = "sinpapel-drf"
-version = "0.4.2"
+version = "0.4.3"
 description = "DRF HTTP layer for sinpapel — auto-routing, ViewSets, signature serializers (extraído desde creditos/E13)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "sinpapel>=0.7.1",
+    "sinpapel~=0.8.0",
     "djangorestframework>=3.14",
 ]
 

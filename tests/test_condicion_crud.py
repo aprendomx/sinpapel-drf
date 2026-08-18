@@ -88,10 +88,12 @@ def test_condicion_list_filters_by_transicion(transition_db, api_admin):
         transicion=transition_db, tipo="python_path",
         configuracion={"path": "x.y"}, orden=1,
     )
+    from sinpapel.models import Estado
+    otro_destino = Estado.objects.create(nombre="COND_OTRO_DESTINO")
     other_t = ConfiguracionTransicion.objects.create(
         flujo=transition_db.flujo,
         estado_origen=transition_db.estado_origen,
-        estado_destino=transition_db.estado_destino,
+        estado_destino=otro_destino,
     )
     CondicionTransicion.objects.create(
         transicion=other_t, tipo="json_logic",

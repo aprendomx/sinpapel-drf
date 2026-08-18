@@ -31,7 +31,7 @@ class _MockMeta:
 
 def _make_mock_model(name: str):
     """Construye una clase mock con _meta para tests del decorator."""
-    return type(name, (), {"_meta": _MockMeta(["estado"])})
+    return type(name, (), {"_meta": _MockMeta(["estado", "actualizado"])})
 
 
 def test_router_registers_exposed_only(cleanup_registry):
