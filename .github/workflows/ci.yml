@@ -33,16 +33,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        # DRF >= 3.16 requiere Django >= 5.1 (import de cc_delim_re roto
-        # en 5.0): el combo Django 5.0 acota DRF a < 3.16.
+        # UNA sola invocación de pip con el pin de Django incluido — en
+        # invocaciones separadas el resolver puede upgradear Django
+        # silenciosamente. DRF >= 3.16 requiere Django >= 5.1 → el combo
+        # Django 5.0 acota DRF a < 3.16.
         run: |
           python -m pip install --upgrade pip
           if [ "${{ matrix.django-version }}" = "5.0" ]; then
-            pip install "Django~=5.0.0" "djangorestframework<3.16"
+            pip install -e ".[dev]" "Django~=5.0.0" "djangorestframework<3.16"
           else
-            pip install "Django~=${{ matrix.django-version }}.0" djangorestframework
+            pip install -e ".[dev]" "Django~=${{ matrix.django-version }}.0" djangorestframework
           fi
-          pip install -e ".[dev]"
 
       - name: Run tests
         run: python -m pytest -v
