@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-08-18
+
+### Changed
+
+- Requiere `sinpapel>=0.7.1`. Hereda tres fixes del motor que impactan
+  directamente a los endpoints de este paquete:
+  - `GET /<slug>/<pk>/preview-transition/` ahora regresa `historial_reciente`
+    con contenido real (antes siempre `[]` por un bug de filtro GFK en el core).
+  - `GET /<slug>/<pk>/available-transitions/` vía el método inyectado ahora
+    respeta el `VersionFlujo` resuelto de la instancia (antes mezclaba
+    transiciones de todos los flujos).
+  - `POST /<slug>/<pk>/transition/` es segura ante requests concurrentes
+    (lock pesimista + revalidación en el core); el doble-submit produce un
+    409/`PermissionError` en lugar de una transición duplicada.
+
 ## [0.4.1] - 2026-06-29
 
 ### Fixed
