@@ -187,6 +187,9 @@ class PreviewTransitionResponseSerializer(serializers.Serializer):
     aprobadores_requeridos = serializers.ListField(child=serializers.DictField())
     side_effects = serializers.ListField(child=serializers.CharField())
     historial_reciente = serializers.ListField(child=serializers.DictField())
+    # sinpapel 0.8.0: la transición exigirá firma_payload (la UI debe pedir
+    # firma antes de ejecutar). Default False para engines pre-0.8.
+    firma_requerida = serializers.BooleanField(default=False)
 
 
 # ── v0.2.0: Metadatos schema serializer ────────────────────────────────────

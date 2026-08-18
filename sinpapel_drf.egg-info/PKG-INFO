@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: sinpapel-drf
-Version: 0.4.2
+Version: 0.4.3
 Summary: DRF HTTP layer for sinpapel — auto-routing, ViewSets, signature serializers (extraído desde creditos/E13)
 Author-email: Julio Adrián <jadrian.s@gmail.com>
 License-Expression: GPL-3.0-or-later
@@ -23,7 +23,7 @@ Classifier: Topic :: Software Development :: Libraries :: Python Modules
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: sinpapel>=0.7.1
+Requires-Dist: sinpapel~=0.8.0
 Requires-Dist: djangorestframework>=3.14
 Provides-Extra: dev
 Requires-Dist: pytest>=9.0; extra == "dev"

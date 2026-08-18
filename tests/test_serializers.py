@@ -342,3 +342,24 @@ def test_preview_transition_response_serializes_full_report():
     assert s.data["permitido"] is True
     assert s.data["side_effects"] == ["Aprobado"]
     assert s.data["predicados_fallidos"][0]["condicion_id"] == 1
+
+
+def test_preview_transition_response_incluye_firma_requerida():
+    """0.4.4: la key firma_requerida (sinpapel 0.8.0) pasa al response."""
+    from sinpapel_drf.serializers import PreviewTransitionResponseSerializer
+
+    base = {
+        "permitido": True,
+        "razones_bloqueo": [],
+        "documentos_faltantes": [],
+        "predicados_fallidos": [],
+        "aprobadores_requeridos": [],
+        "side_effects": [],
+        "historial_reciente": [],
+    }
+    con_firma = PreviewTransitionResponseSerializer({**base, "firma_requerida": True})
+    assert con_firma.data["firma_requerida"] is True
+
+    # Engines pre-0.8 sin la key → default False, no KeyError
+    sin_key = PreviewTransitionResponseSerializer(base)
+    assert sin_key.data["firma_requerida"] is False

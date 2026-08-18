@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-08-18
+
+### Fixed
+
+- `POST /<slug>/<pk>/preview-transition/`: el response ahora incluye
+  `firma_requerida` (sinpapel 0.8.0). El serializer whitelisteaba los campos
+  y la key nueva del motor se perdía; la UI no podía saber que la transición
+  exigirá firma. Default `False` con engines pre-0.8.
+
 ## [0.4.3] - 2026-08-18
 
 ### Changed
