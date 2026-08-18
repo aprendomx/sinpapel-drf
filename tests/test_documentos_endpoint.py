@@ -19,7 +19,7 @@ from sinpapel.registry import WorkflowConfig, WorkflowRegistry
 
 @pytest.fixture
 def expose_config(cleanup_registry):
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     config = WorkflowConfig(
         model=Solicitud, state_field="estado", workflow_key="solicitud_docs_t",
         expose_endpoints=True, endpoint_slug="solicitudes-docs",
@@ -43,7 +43,7 @@ def catalogo(db):
 
 @pytest.fixture
 def solicitud(db):
-    from creditos.models import ProductoCreditoFOVISSSTE, Solicitud
+    from tests.models import ProductoPrueba as ProductoCreditoFOVISSSTE, SolicitudPrueba as Solicitud
     from sinpapel.models import Estado
     estado = Estado.objects.create(nombre="DOCS_ORIGEN")
     producto = ProductoCreditoFOVISSSTE.objects.create(
@@ -132,7 +132,7 @@ def test_delete_documento_propio(solicitud, catalogo, api_client):
 
 @pytest.mark.django_db
 def test_delete_documento_de_otro_tramite_da_404(solicitud, catalogo, api_client):
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     from sinpapel.models import InstanciaDocumento
     otro = Solicitud.objects.create(
         producto=solicitud.producto, estado=solicitud.estado, monto_solicitado=2000,

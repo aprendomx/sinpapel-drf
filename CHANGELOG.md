@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-08-18
+
+### Fixed
+
+- **Firma fiel/client-side con backend polimórfico real.** El viewset ahora
+  invoca `FielBackend.request_signature` directamente y pasa Modo B al motor
+  (`registro_firma_id`), igual que las demás ramas del dispatch. Antes pasaba
+  Modo A (verify-fields) confiando en el `FielBackend` hardcodeado del engine
+  pre-0.8; con sinpapel ≥0.8 el Modo A usa el backend CONFIGURADO
+  (`SINPAPEL_SIGNATURE_BACKEND`) — un proyecto con default manual habría
+  firmado peticiones "fiel" con `ManualBackend` silenciosamente.
+
+### Changed
+
+- **La suite corre standalone** (sin el proyecto host creditos): settings de
+  test propios (`tests/settings.py`), app `tests` con modelos espejo
+  (`SolicitudPrueba`, `ProductoPrueba`, `ProductoVersionFlujoPrueba`) y
+  fixture autouse de limpieza del cache de sinpapel. 120 tests corren con
+  `pytest` a secas — antes 41 requerían `creditos` y no eran ejecutables
+  fuera del monolito.
+- CI: workflow de GitHub Actions (Django 5.0/5.2/6.0 × Python 3.10–3.13).
+
 ## [0.4.4] - 2026-08-18
 
 ### Fixed

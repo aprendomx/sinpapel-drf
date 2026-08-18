@@ -19,3 +19,15 @@ def cleanup_registry():
     keys_after = set(WorkflowRegistry.list_keys())
     for key in keys_after - keys_before:
         WorkflowRegistry.unregister(key)
+
+
+@pytest.fixture(autouse=True)
+def _clear_sinpapel_cache_each_test():
+    """LocMemCache es process-wide: sin limpieza, Estados cacheados de un test
+    contaminan al siguiente (IDs de una BD ya rolled-back). Espejo del
+    conftest del core."""
+    from sinpapel.cache import clear_all
+
+    clear_all()
+    yield
+    clear_all()

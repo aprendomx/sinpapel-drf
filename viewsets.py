@@ -6,11 +6,16 @@
 - history (GET) → HistoryEntrySerializer + PageNumberPagination (D4)
 
 S13.6 signature dispatch (D-discr + D-parser + D-engine-passthrough):
-- Modo A (fiel/client-side): JSON body → engine recibe firma_payload con verify-fields
-- Modo B (fiel/server-side): multipart → viewset invoca FielBackend.sign_server_side
+- fiel/client-side: JSON body → viewset invoca FielBackend.request_signature
+  (verifica RSA + cadena) → engine recibe {"registro_firma_id": rf.id}
+- fiel/server-side: multipart → viewset invoca FielBackend.sign_server_side
   → engine recibe firma_payload={"registro_firma_id": rf.id}
 - manual/fake: JSON body → viewset invoca el backend correspondiente → engine
   recibe firma_payload={"registro_firma_id": rf.id}
+
+Todas las ramas usan Modo B del engine (registro pre-creado, validado por
+el core 0.8: pertenencia al usuario, estado válido, no-reuso), preservando
+el polimorfismo por request con independencia de SINPAPEL_SIGNATURE_BACKEND.
 
 Error mapping (S13.5 D3 + S13.6 extension):
 - ValueError → DRF ValidationError (400)
@@ -105,15 +110,22 @@ def _build_firma_payload_for_engine(
         return {"registro_firma_id": rf.id}
 
     elif backend_name == "fiel":  # client-side
-        # Engine verifica via FielBackend.request_signature
-        # firma_b64 viene base64 del cliente; cer_b64 también.
-        return {
-            "contenido": _canonicalize_for_signing(
+        # 0.4.5: el viewset invoca FielBackend directamente y pasa Modo B,
+        # igual que las demás ramas. Antes se pasaba Modo A (verify-fields)
+        # confiando en que el engine instanciaba FielBackend hardcodeado;
+        # desde sinpapel 0.8.0 el Modo A usa el backend CONFIGURADO
+        # (SINPAPEL_SIGNATURE_BACKEND) — un proyecto con default manual
+        # habría firmado "fiel" con ManualBackend silenciosamente.
+        from sinpapel.signing.backends.fiel import FielBackend
+        rf = FielBackend().request_signature(
+            content=_canonicalize_for_signing(
                 target_state, instance.pk, user.id
             ),
-            "firma_b64": sig_data["firma_b64"],
-            "certificado_cer_b64": sig_data["certificado_cer_b64"],
-        }
+            signer=user,
+            firma_b64=sig_data["firma_b64"],
+            certificado_cer_b64=sig_data["certificado_cer_b64"],
+        )
+        return {"registro_firma_id": rf.id}
 
     elif backend_name == "manual":
         from sinpapel.signing.backends.manual import ManualBackend

@@ -37,7 +37,7 @@ from sinpapel.registry import WorkflowConfig, WorkflowRegistry
 
 @pytest.fixture
 def expose_solicitud_config(cleanup_registry):
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
 
     config = WorkflowConfig(
         model=Solicitud,
@@ -59,7 +59,7 @@ def admin_user(db):
 
 @pytest.fixture
 def transition_setup(db):
-    from creditos.models import ProductoCreditoFOVISSSTE, ProductoVersionFlujo
+    from tests.models import ProductoPrueba as ProductoCreditoFOVISSSTE, ProductoVersionFlujoPrueba as ProductoVersionFlujo
     from sinpapel.models import ConfiguracionTransicion, Estado, VersionFlujo
 
     estado_origen = Estado.objects.create(nombre="S13_6_ORIGEN")
@@ -82,7 +82,7 @@ def transition_setup(db):
 
 @pytest.fixture
 def solicitud_with_flujo(transition_setup):
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     return Solicitud.objects.create(
         estado=transition_setup["estado_origen"],
         producto=transition_setup["producto"],

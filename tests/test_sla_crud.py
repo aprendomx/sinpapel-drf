@@ -191,7 +191,7 @@ def test_sla_retrieve(estado, api_admin):
 
 @pytest.fixture
 def expose_sla_config(cleanup_registry):
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
 
     config = WorkflowConfig(
         model=Solicitud,
@@ -206,7 +206,7 @@ def expose_sla_config(cleanup_registry):
 
 @pytest.fixture
 def solicitud_for_sla(estado, db):
-    from creditos.models import ProductoCreditoFOVISSSTE, Solicitud
+    from tests.models import ProductoPrueba as ProductoCreditoFOVISSSTE, SolicitudPrueba as Solicitud
 
     producto = ProductoCreditoFOVISSSTE.objects.create(
         nombre="P_SLA", clave="P-SLA", identificador="SL",

@@ -11,4 +11,4 @@ def test_package_importable():
 def test_version_accessible():
     """__version__ matches pyproject.toml v0.1.0."""
     from sinpapel_drf import __version__
-    assert __version__ == "0.4.4"
+    assert __version__ == "0.4.5"

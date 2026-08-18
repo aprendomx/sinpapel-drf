@@ -27,7 +27,7 @@ from sinpapel.registry import WorkflowConfig, WorkflowRegistry
 @pytest.fixture
 def expose_solicitud_config(cleanup_registry):
     """Registra config extra para creditos.Solicitud con expose=True."""
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
 
     config = WorkflowConfig(
         model=Solicitud,
@@ -53,7 +53,7 @@ def transition_setup(db):
     """Crea Estado origen/destino + VersionFlujo + ConfiguracionTransicion +
     Producto + ProductoVersionFlujo.
     """
-    from creditos.models import ProductoCreditoFOVISSSTE, ProductoVersionFlujo
+    from tests.models import ProductoPrueba as ProductoCreditoFOVISSSTE, ProductoVersionFlujoPrueba as ProductoVersionFlujo
     from sinpapel.models import ConfiguracionTransicion, Estado, VersionFlujo
 
     estado_origen = Estado.objects.create(nombre="S13_5_ORIGEN")
@@ -81,7 +81,7 @@ def transition_setup(db):
 @pytest.fixture
 def solicitud_with_flujo(transition_setup):
     """Solicitud lista para hacer transition: estado=ORIGEN, producto vinculado a flujo activo."""
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     return Solicitud.objects.create(
         estado=transition_setup["estado_origen"],
         producto=transition_setup["producto"],
@@ -284,7 +284,7 @@ def test_history_endpoint_paginated_default_page_size(
     """GET /history/ sin query → paginated structure con page_size=10 (D4)."""
     fake_entries = _make_fake_history_entries(15)
     # Patch instance method via class — affects this and subsequent get_object()
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     monkeypatch.setattr(
         Solicitud, "history", property(lambda self: _FakeHistory(fake_entries)),
         raising=False,
@@ -310,7 +310,7 @@ def test_history_endpoint_page_size_query_param(
 ):
     """GET /history/?page_size=2 → 2 entries por página (D4)."""
     fake_entries = _make_fake_history_entries(5)
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     monkeypatch.setattr(
         Solicitud, "history", property(lambda self: _FakeHistory(fake_entries)),
         raising=False,
@@ -331,7 +331,7 @@ def test_history_endpoint_max_page_size_clamped(
 ):
     """GET /history/?page_size=500 → clamped a max_page_size=100 (D4)."""
     fake_entries = _make_fake_history_entries(150)
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     monkeypatch.setattr(
         Solicitud, "history", property(lambda self: _FakeHistory(fake_entries)),
         raising=False,
@@ -481,7 +481,7 @@ def test_history_prefers_historicalrecords_over_seguimiento(
     """Si el modelo SÍ declara HistoricalRecords, /history/ los sirve y NO hace
     fallback a SeguimientoWorkflow (aunque existan transiciones)."""
     from django.contrib.contenttypes.models import ContentType
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
     from sinpapel.models import SeguimientoWorkflow
 
     ct = ContentType.objects.get_for_model(Solicitud)

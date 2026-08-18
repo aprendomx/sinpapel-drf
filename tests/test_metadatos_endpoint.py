@@ -27,7 +27,7 @@ TEST_SCHEMA = [
 @pytest.fixture
 def patched_schema(monkeypatch):
     """Inyecta SCHEMA_METADATOS en Solicitud por el test."""
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
 
     monkeypatch.setattr(Solicitud, "SCHEMA_METADATOS", TEST_SCHEMA, raising=False)
     from sinpapel_drf.metadata_views import get_meta_serializer_class
@@ -38,7 +38,7 @@ def patched_schema(monkeypatch):
 
 @pytest.fixture
 def expose_config(cleanup_registry):
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
 
     config = WorkflowConfig(
         model=Solicitud,
@@ -60,7 +60,7 @@ def admin_user(db):
 
 @pytest.fixture
 def solicitud(db):
-    from creditos.models import ProductoCreditoFOVISSSTE, Solicitud
+    from tests.models import ProductoPrueba as ProductoCreditoFOVISSSTE, SolicitudPrueba as Solicitud
     from sinpapel.models import Estado
 
     estado = Estado.objects.create(nombre="META_ORIGEN")
@@ -153,7 +153,7 @@ def test_metadatos_patch_unknown_key_rejected(solicitud, api_client):
 
 @pytest.mark.django_db
 def test_metadatos_patch_isolation_between_instances(solicitud, api_client):
-    from creditos.models import Solicitud
+    from tests.models import SolicitudPrueba as Solicitud
 
     other = Solicitud.objects.create(
         producto=solicitud.producto, estado=solicitud.estado, monto_solicitado=2000,
