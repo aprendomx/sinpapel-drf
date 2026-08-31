@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-08-30
+
+### Fixed
+
+- **El paquete no incluía el texto de la licencia.** `LICENSE` contenía solo el
+  aviso de permisos —que dice «deberías haber recibido una copia de la
+  Licencia»— sin acompañarla, y la rueda publicada en PyPI lo distribuía así.
+  La GPL exige transmitir esa copia junto con el programa. Ahora lleva el texto
+  canónico verbatim; el aviso de copyright pasa al README, que es donde la
+  propia licencia indica que va. Sin cambios de código ni de API.
+
 ## [0.4.5] - 2026-08-18
 
 ### Fixed
