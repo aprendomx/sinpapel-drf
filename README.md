@@ -485,7 +485,11 @@ The package ships 90+ unit + E2E tests covering routers, viewsets, serializers, 
 
 ## 13. License & Contributing
 
-GPL-3.0-or-later — see [LICENSE](https://github.com/aprendomx/sinpapel-drf/blob/main/LICENSE).
+Copyright (C) 2024-2026 Julio Adrián.
+
+sinpapel-drf is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+sinpapel-drf is distributed in the hope that it will be useful, but **WITHOUT ANY WARRANTY**; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the [GNU General Public License](https://github.com/aprendomx/sinpapel-drf/blob/main/LICENSE) for more details.
 
 Issues + PRs at https://github.com/aprendomx/sinpapel-drf/issues. Tag with `area/sinpapel-drf`.
 
