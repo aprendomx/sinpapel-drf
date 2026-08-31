@@ -1,9 +1,0 @@
-sinpapel~=0.8.0
-djangorestframework>=3.14
-
-[dev]
-pytest>=9.0
-pytest-django>=4.12
-
-[openapi]
-drf-spectacular>=0.27

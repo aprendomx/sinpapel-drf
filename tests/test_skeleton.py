@@ -9,6 +9,13 @@ def test_package_importable():
 
 
 def test_version_accessible():
-    """__version__ matches pyproject.toml v0.1.0."""
+    """`__version__` and the installed distribution metadata agree.
+
+    Compared against the distribution metadata rather than a fixed string: the
+    real error is bumping one place and forgetting the other, and this way the
+    test catches it without needing an edit on every release.
+    """
+    from importlib.metadata import version
+
     from sinpapel_drf import __version__
-    assert __version__ == "0.4.6"
+    assert __version__ == version("sinpapel-drf")
